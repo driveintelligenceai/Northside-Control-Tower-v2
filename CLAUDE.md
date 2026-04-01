@@ -4,7 +4,11 @@
 
 pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
 
-**Project**: Northside Hospital Sales & Marketing Control Tower — a mission-control-style command center for the CMO and CTO. Tracks all marketing inputs (paid ads, campaigns) and outputs (patient bookings, lead attribution), monitors recursive AI learning agents, and surfaces anomalies. Pre-populated with realistic Northside Hospital (Atlanta, GA) data across 10 actual service lines. HIPAA-aware architecture with de-identified patient data throughout. This will be modified slightly to use local tooling from replit, but will function the same. We will use reference /docs/GAMEPLAN.MD for improvements. ALways ask clarifng questions and recursively improve this doc by removing irrlevant items by commenting the code out, not deleting it since we we have a pipeline to push back and fourth ti replit.
+**Project**: Northside Hospital Sales & Marketing Control Tower — a mission-control-style command center for the CMO and CTO. Tracks all marketing inputs (paid ads, campaigns) and outputs (patient bookings, lead attribution), monitors recursive AI learning agents, and surfaces anomalies. Pre-populated with realistic Northside Hospital (Atlanta, GA) data across 10 actual service lines. HIPAA-aware architecture with de-identified patient data throughout.
+
+**Deployment**: Vercel (https://northside-control-tower.vercel.app)
+**Database**: Neon PostgreSQL via Vercel Marketplace (auto-provisioned `DATABASE_URL`)
+**Migrated from**: Replit on 2026-04-01
 
 ## Stack
 
@@ -16,7 +20,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Database**: PostgreSQL + Drizzle ORM
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Build**: esbuild (ESM bundle)
 - **Frontend**: React + Vite, TailwindCSS, shadcn/ui, Recharts, React Query
 
 ## Structure
@@ -119,14 +123,14 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
 - Routes: `src/routes/index.ts` mounts sub-routers (dashboard, service-lines, lead-sources, campaigns, bookings, content, agents, alerts)
 - Depends on: `@workspace/db`, `@workspace/api-zod`
 - `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
+- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.mjs` + `dist/serverless.mjs`)
 
 ### `artifacts/control-tower` (`@workspace/control-tower`)
 
 React + Vite frontend for the Control Tower. Uses shadcn/ui components, Recharts for visualizations, React Query for data fetching.
 
 - Entry: `src/main.tsx` — React app with QueryClientProvider
-- Router: `src/App.tsx` — React Router with 8 page routes
+- Router: `src/App.tsx` — wouter with 8 page routes
 - Pages: `src/pages/` — Individual page components
 - Components: `src/components/ui/` — shadcn/ui components
 - Depends on: `@workspace/api-client-react`
@@ -137,10 +141,18 @@ Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client insta
 
 - `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
 - `src/schema/index.ts` — barrel re-export of all models
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
+- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL` or `POSTGRES_URL`)
 - Exports: `.` (pool, db, schema), `./schema` (schema only)
 
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
+**DB connection resolution**: `DATABASE_URL` || `POSTGRES_URL` || `DATABASE_POSTGRES_URL_NON_POOLING` || `DATABASE_POSTGRES_URL`
+
+**Schema push**: `pnpm exec dotenv -e .env.local -- pnpm --filter @workspace/db run push`
+**Seed data**: `cd scripts && pnpm exec dotenv -e ../.env.local -- pnpm exec tsx src/seed.ts`
+
+**Gotchas**:
+- Pool `max: 1` is required for Vercel serverless (default 10 exhausts Neon connection limits)
+- SSL `rejectUnauthorized: false` is needed for Neon connections from Vercel
+- Always run `vercel env pull .env.local --yes` to get DB creds locally
 
 ### `lib/api-spec` (`@workspace/api-spec`)
 
@@ -164,3 +176,40 @@ Generated React Query hooks and fetch client from the OpenAPI spec.
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
 
 - `seed` — Populates database with realistic Northside Hospital data (10 service lines, 15 lead sources, 25 campaigns, 50,000 patient leads, 25 content assets, 5 AI agents, 100 agent activities, 15 alerts, 25,000 attribution touchpoints, 200 audit trail entries)
+
+## Vercel Deployment
+
+- **Production URL**: https://northside-control-tower.vercel.app
+- **GitHub auto-deploy**: Push to `main` triggers production deploy
+- **vercel.json**: Configures build commands, output directory, API rewrites, serverless function settings
+
+### Architecture on Vercel
+
+```text
+Request → Vercel CDN
+  ├── /api/* → Rewrite to api/index.mjs (Serverless Function)
+  │             └── imports dist/serverless.mjs (pre-built Express app)
+  │             └── connects to Neon PostgreSQL via POSTGRES_URL
+  └── /* → Static files from artifacts/control-tower/dist/public/
+```
+
+**Key files for Vercel:**
+- `vercel.json` — Build config, rewrites, function settings
+- `api/index.mjs` — Serverless function entry (imports pre-built Express app)
+- `artifacts/api-server/src/serverless.ts` — Express app export without `listen()` (built by esbuild to `dist/serverless.mjs`)
+
+### Deploy commands
+
+```bash
+vercel deploy              # Preview deploy
+vercel deploy --prod       # Production deploy
+vercel env pull .env.local # Pull env vars locally
+vercel env ls              # List env vars
+vercel logs <url>          # Check runtime logs
+```
+
+### Environment Variables (auto-provisioned by Neon Marketplace integration)
+
+- `DATABASE_URL` / `POSTGRES_URL` — Neon pooled connection string
+- `POSTGRES_URL_NON_POOLING` — Direct connection (for migrations)
+- `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` — Individual connection params
