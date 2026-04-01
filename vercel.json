@@ -3,14 +3,15 @@
   "version": 2,
   "framework": null,
   "installCommand": "corepack enable && pnpm install",
-  "buildCommand": "pnpm -r --filter @workspace/control-tower run build",
+  "buildCommand": "pnpm -r --filter @workspace/api-server run build && BASE_PATH=/ pnpm -r --filter @workspace/control-tower run build",
   "outputDirectory": "artifacts/control-tower/dist/public",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" }
   ],
   "functions": {
-    "api/index.ts": {
-      "maxDuration": 30
+    "api/index.mjs": {
+      "maxDuration": 30,
+      "includeFiles": "artifacts/api-server/dist/**"
     }
   }
 }
