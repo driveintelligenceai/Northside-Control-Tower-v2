@@ -14,6 +14,9 @@ import {
   ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useRoleView } from "@/context/role-context";
+import { ROLE_VIEWS, type RoleKey } from "@/lib/roles";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -28,6 +31,7 @@ const navItems = [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { roleKey, setRoleKey } = useRoleView();
 
   return (
     <div className="flex min-h-screen bg-background text-foreground font-sans">
@@ -82,6 +86,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <span className="text-muted-foreground text-sm hidden sm:inline">Sales & Marketing</span>
           </div>
           <div className="flex items-center gap-3">
+            <Select value={roleKey} onValueChange={(value) => setRoleKey(value as RoleKey)}>
+              <SelectTrigger className="h-8 w-[210px] bg-white text-xs">
+                <SelectValue placeholder="Role view" />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLE_VIEWS.map((role) => (
+                  <SelectItem key={role.key} value={role.key}>
+                    {role.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="flex items-center gap-2 text-xs text-muted-foreground border border-border px-3 py-1.5 rounded-md bg-background">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>

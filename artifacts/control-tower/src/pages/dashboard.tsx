@@ -10,8 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight, ArrowDownRight, Users, Target, DollarSign, Zap, Brain, ShieldAlert } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
+import { useRoleView } from "@/context/role-context";
+import { KpiTrustBadge } from "@/components/kpi-trust-badge";
 
 export default function DashboardPage() {
+  const { role } = useRoleView();
   const { data: summary, isLoading: loadingSummary } = useGetDashboardSummary({ period: "30d" });
   const { data: trends, isLoading: loadingTrends } = useGetDashboardTrends({ period: "30d" });
   const { data: agents, isLoading: loadingAgents } = useListAgents();
@@ -32,13 +35,32 @@ export default function DashboardPage() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Marketing Overview</h2>
         <p className="text-muted-foreground text-sm mt-1">30-day performance summary for Northside Hospital marketing operations.</p>
+        <p className="text-xs text-accent mt-2">
+          {role.label} focus: {role.focus}
+        </p>
       </div>
+
+      <Card className="bg-white border-card-border shadow-sm">
+        <CardHeader className="pb-3 border-b border-border">
+          <CardTitle className="text-sm font-semibold">Role-Based KPI Priorities</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+            {role.primaryKpis.map((kpi) => (
+              <div key={kpi} className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-foreground">
+                {kpi}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard 
           title="Total Leads" 
           value={summary?.totalLeads ? formatNumber(summary.totalLeads) : "..."} 
           trend={summary?.totalLeadsTrend} 
+          metricKey="dashboard.totalLeads"
           icon={Users} 
           loading={loadingSummary} 
         />
@@ -46,6 +68,7 @@ export default function DashboardPage() {
           title="New Bookings" 
           value={summary?.newBookings ? formatNumber(summary.newBookings) : "..."} 
           trend={summary?.newBookingsTrend} 
+          metricKey="dashboard.newBookings"
           icon={Target} 
           loading={loadingSummary} 
         />
@@ -54,6 +77,7 @@ export default function DashboardPage() {
           value={summary?.costPerAcquisition ? formatCurrency(summary.costPerAcquisition) : "..."} 
           trend={summary?.cpaTrend} 
           inverseTrend={true}
+          metricKey="dashboard.cpa"
           icon={DollarSign} 
           loading={loadingSummary} 
         />
@@ -61,6 +85,7 @@ export default function DashboardPage() {
           title="System ROI" 
           value={summary?.campaignROI ? formatPercent(summary.campaignROI) : "..."} 
           trend={summary?.roiTrend} 
+          metricKey="dashboard.roi"
           icon={Zap} 
           loading={loadingSummary} 
         />
@@ -186,6 +211,7 @@ function MetricCard({
   title, 
   value, 
   trend, 
+  metricKey,
   icon: Icon, 
   loading,
   inverseTrend = false
@@ -193,6 +219,7 @@ function MetricCard({
   title: string; 
   value: string | number; 
   trend?: number; 
+  metricKey: string;
   icon: ElementType; 
   loading?: boolean;
   inverseTrend?: boolean;
@@ -205,8 +232,11 @@ function MetricCard({
       <CardContent className="p-5">
         <div className="flex justify-between items-start mb-3">
           <div className="text-muted-foreground text-sm">{title}</div>
-          <div className="p-2 bg-primary/5 rounded-md">
-            <Icon className="h-4 w-4 text-primary" />
+          <div className="flex items-center gap-2">
+            <KpiTrustBadge metricKey={metricKey} />
+            <div className="p-2 bg-primary/5 rounded-md">
+              <Icon className="h-4 w-4 text-primary" />
+            </div>
           </div>
         </div>
         <div className="flex items-baseline gap-4">

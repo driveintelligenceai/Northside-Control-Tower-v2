@@ -1,29 +1,49 @@
-import type { ElementType } from "react";
+import { useMemo, useState, type ElementType } from "react";
 import { useGetAttribution, useListLeadSources } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Network, GitMerge, Fingerprint } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useRoleView } from "@/context/role-context";
+import { KpiTrustBadge } from "@/components/kpi-trust-badge";
 
 export default function AttributionPage() {
+  const { role } = useRoleView();
+  const [model, setModel] = useState<"first_touch" | "multi_touch" | "last_touch" | "time_decay" | "position_based">("multi_touch");
   const { data: attribution, isLoading: loadingAttr } = useGetAttribution({ period: "30d" });
   const { data: sources, isLoading: loadingSources } = useListLeadSources({ period: "30d" });
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
   const formatPercent = (val: number) => `${val.toFixed(1)}%`;
 
-  const chartData = sources?.slice(0, 5).map(source => {
-    const ft = attribution?.firstTouch.find(a => a.sourceName === source.name)?.conversions || 0;
-    const lt = attribution?.lastTouch.find(a => a.sourceName === source.name)?.conversions || 0;
-    const mt = attribution?.multiTouch.find(a => a.sourceName === source.name)?.conversions || 0;
-    return { name: source.name, FirstTouch: ft, LastTouch: lt, MultiTouch: mt };
-  }) || [];
+  const chartData = useMemo(
+    () =>
+      sources?.slice(0, 5).map((source) => {
+        const ft = attribution?.firstTouch.find((a) => a.sourceName === source.name)?.conversions || 0;
+        const lt = attribution?.lastTouch.find((a) => a.sourceName === source.name)?.conversions || 0;
+        const mt = attribution?.multiTouch.find((a) => a.sourceName === source.name)?.conversions || 0;
+        const td = Math.round(0.2 * ft + 0.5 * mt + 0.3 * lt);
+        const pb = Math.round(0.4 * ft + 0.2 * mt + 0.4 * lt);
+        return { name: source.name, FirstTouch: ft, LastTouch: lt, MultiTouch: mt, TimeDecay: td, PositionBased: pb };
+      }) || [],
+    [attribution, sources],
+  );
+
+  const modelConfig = {
+    first_touch: { key: "FirstTouch", label: "First Touch", color: "#003B71" },
+    multi_touch: { key: "MultiTouch", label: "Multi-Touch", color: "#0073CF" },
+    last_touch: { key: "LastTouch", label: "Last Touch", color: "#4BA3E3" },
+    time_decay: { key: "TimeDecay", label: "Time-Decay", color: "#2E8B57" },
+    position_based: { key: "PositionBased", label: "Position-Based", color: "#0E7490" },
+  } as const;
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Source Attribution</h2>
         <p className="text-muted-foreground text-sm mt-1">Multi-touch path analysis identifying high-value lead sources.</p>
+        <p className="text-xs text-accent mt-2">{role.label} focus: {role.focus}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -35,7 +55,24 @@ export default function AttributionPage() {
 
         <Card className="lg:col-span-3 bg-white border-card-border shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Model Comparison (Top 5 Sources)</CardTitle>
+            <CardTitle className="text-base font-semibold flex items-center justify-between gap-3">
+              <span>Model Comparison (Top 5 Sources)</span>
+              <div className="flex items-center gap-2">
+                <KpiTrustBadge metricKey={`attribution.${model}`} />
+                <Select value={model} onValueChange={(next) => setModel(next as typeof model)}>
+                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="first_touch">First Touch</SelectItem>
+                    <SelectItem value="multi_touch">Multi-Touch</SelectItem>
+                    <SelectItem value="last_touch">Last Touch</SelectItem>
+                    <SelectItem value="time_decay">Time-Decay</SelectItem>
+                    <SelectItem value="position_based">Position-Based</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardTitle>
             <CardDescription>Conversion count variance across different attribution models</CardDescription>
           </CardHeader>
           <CardContent>
@@ -53,9 +90,12 @@ export default function AttributionPage() {
                       contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
                     />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                    <Bar dataKey="FirstTouch" fill="#003B71" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="MultiTouch" fill="#0073CF" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="LastTouch" fill="#4BA3E3" radius={[4, 4, 0, 0]} />
+                    <Bar
+                      dataKey={modelConfig[model].key}
+                      name={modelConfig[model].label}
+                      fill={modelConfig[model].color}
+                      radius={[4, 4, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -116,6 +156,7 @@ function ModelCard({ title, description, icon: Icon, data, loading, highlight = 
         <CardTitle className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
           <Icon className={`h-4 w-4 ${highlight ? 'text-accent' : ''}`} />
           {title}
+          <KpiTrustBadge metricKey={`attribution.${title.toLowerCase().replace(/[^a-z]/g, "")}`} />
         </CardTitle>
         <CardDescription className="text-xs">{description}</CardDescription>
       </CardHeader>

@@ -638,3 +638,1040 @@ dbt-style testing practices emphasize basic checks such as uniqueness and non-nu
 - Finance/margin: daily refresh with month-end close reconciliation
 
 These tiers match the source’s explicit tiering guidance. fileciteturn3file6
+# Testing, Evaluation, and Agent Suite for the Northside Oncology + Cardio‑Oncology Control Center
+
+## Executive context and what “good” looks like for a skeptical hospital CMO
+
+From your Version 4 “Production Build Ready” master prompt and your supporting context, the dashboard’s purpose is not “marketing reporting,” but a **trusted, role-based control center** that connects demand generation to operational throughput and (eventually) contribution margin, while respecting HIPAA constraints and minimizing PHI exposure. Your prompt explicitly anticipates distrust: last‑click attribution failure, missing margin linkage, no role-based views, HIPAA limitations, dumb alerts without causes, cardio‑onc eligibility→enrollment gaps, and access bottlenecks that quietly kill demand.  
+
+That means testing and evaluation cannot stop at “the page loads.” They must prove four things continuously:
+
+- The numbers are **correct enough to bet a board meeting on** (data quality + KPI integrity).
+- The experience is **simple at the top** but can drill down without breaking trust (UX + role controls).
+- The system is **governed** (RLS/PHI controls + auditability).
+- The “agents” are **safe and self‑improving with a visible ledger** (so a legacy‑systems CMO can trust them slowly, then deeply).
+
+To keep this practical, below are two scripts:
+- **Part one:** a **testing script** (smoke + data quality + KPI sanity + permission checks + optional UI smoke).
+- **Part two:** an **evaluation script** (trust score trends + SLA compliance + anomaly quality + LLM/agent reliability + an “error ledger” report you can show to leadership).
+
+Both scripts deliberately support:
+- **dbt-style tests** (uniqueness, not_null, accepted_values, relationships) because these are the core “analytics checks” dbt emphasizes as foundational. citeturn4search3  
+- **Great Expectations** suites/checkpoints because GE treats expectations as “unit tests for data” and operationalizes validation through Checkpoints with human-readable Data Docs. citeturn0search5turn0search3turn3search5turn0search6  
+- **Playwright** optional UI smoke because it’s well-suited for end-to-end testing of role switching, filters, and export, and supports trace capture for debugging. citeturn0search4  
+- **OpenRouter tool calling + structured outputs** for the “Ask the Dashboard” assistant in a way that is parseable and auditable. citeturn0search2turn5search3turn5search6turn5search0  
+- **Safety evaluation aligned to OWASP’s Top 10 for LLM Apps** and broader risk governance aligned to **NIST AI RMF** (trustworthy AI risk management). citeturn2search2turn1search3  
+
+## Part one: Testing script
+
+### What it tests
+
+This single script can run in “modes”:
+
+- **Schema smoke:** required tables exist; required columns exist; column types are compatible (best-effort).
+- **Data quality:** key constraints (unique/not-null), accepted values, referential integrity, freshness heuristics.
+- **KPI sanity:** KPI queries return values; values are non-negative where expected; optional reconciliation vs `kpi_snapshots`.
+- **Access control smoke:** verifies RLS basics by testing that “anonymous” can’t access restricted resources (optional).
+- **UI smoke (optional):** calls Playwright to confirm the big promises: role switching works, key pages load, export endpoint returns success, mobile view loads.
+
+### Files it expects
+
+- `control_center_test_config.yml` (you can start with the sample below)
+- Environment variables:
+  - `DATABASE_URL` (Postgres connection string; Supabase DB URL works)
+  - Optional: `SUPABASE_URL`, `SUPABASE_ANON_KEY` (for API-level RLS tests)
+  - Optional: `RUN_PLAYWRIGHT=1` (to run UI smoke)
+  - Optional: `RUN_DBT=1` (to run dbt tests)
+  - Optional: `RUN_GE=1` (to run Great Expectations checkpoints)
+
+### Testing script: `scripts/test_control_center.py`
+
+```python
+#!/usr/bin/env python3
+"""
+Control Center Test Harness (Northside Oncology + Cardio-Oncology)
+
+Runs:
+- Schema smoke tests (tables/columns)
+- Data quality checks (unique/not null/accepted values/relationships)
+- KPI sanity checks (queries return, basic invariants)
+- Optional: dbt tests
+- Optional: Great Expectations checkpoints
+- Optional: Playwright UI smoke
+
+Why these tools:
+- Great Expectations treats expectations as data "unit tests" and produces Data Docs.  (GE docs)
+- dbt highlights essential checks like uniqueness, non-nullness, accepted values, and relationships. (dbt Labs)
+- Playwright can capture traces for debugging UI test failures. (Playwright docs)
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+import json
+import time
+import yaml
+import shlex
+import argparse
+import subprocess
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+
+import sqlalchemy as sa
+
+
+@dataclass
+class TestResult:
+    name: str
+    ok: bool
+    details: Dict[str, Any]
+
+
+def _env(name: str, default: Optional[str] = None) -> Optional[str]:
+    v = os.getenv(name, default)
+    return v if v not in ("", None) else default
+
+
+def load_config(path: str) -> Dict[str, Any]:
+    with open(path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def pg_engine(database_url: str) -> sa.Engine:
+    # pool_pre_ping helps when connections go stale in CI
+    return sa.create_engine(database_url, pool_pre_ping=True)
+
+
+def query_one(engine: sa.Engine, sql: str, params: Optional[Dict[str, Any]] = None) -> Any:
+    with engine.connect() as conn:
+        return conn.execute(sa.text(sql), params or {}).scalar()
+
+
+def query_all(engine: sa.Engine, sql: str, params: Optional[Dict[str, Any]] = None) -> List[Tuple]:
+    with engine.connect() as conn:
+        return list(conn.execute(sa.text(sql), params or {}).fetchall())
+
+
+def schema_tables(engine: sa.Engine, schema: str) -> List[str]:
+    rows = query_all(
+        engine,
+        """
+        select table_name
+        from information_schema.tables
+        where table_schema = :schema
+        order by table_name
+        """,
+        {"schema": schema},
+    )
+    return [r[0] for r in rows]
+
+
+def schema_columns(engine: sa.Engine, schema: str, table: str) -> Dict[str, Dict[str, Any]]:
+    rows = query_all(
+        engine,
+        """
+        select column_name, data_type, is_nullable
+        from information_schema.columns
+        where table_schema = :schema and table_name = :table
+        order by ordinal_position
+        """,
+        {"schema": schema, "table": table},
+    )
+    return {r[0]: {"data_type": r[1], "is_nullable": r[2]} for r in rows}
+
+
+def run_subprocess(label: str, cmd: str) -> TestResult:
+    t0 = time.time()
+    try:
+        p = subprocess.run(
+            shlex.split(cmd),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        ok = (p.returncode == 0)
+        return TestResult(
+            name=label,
+            ok=ok,
+            details={
+                "cmd": cmd,
+                "returncode": p.returncode,
+                "stdout": p.stdout[-8000:],  # truncate
+                "stderr": p.stderr[-8000:],
+                "seconds": round(time.time() - t0, 2),
+            },
+        )
+    except Exception as e:
+        return TestResult(name=label, ok=False, details={"cmd": cmd, "error": str(e)})
+
+
+def test_required_tables(engine: sa.Engine, schema: str, required: List[str]) -> TestResult:
+    existing = set(schema_tables(engine, schema))
+    missing = [t for t in required if t not in existing]
+    return TestResult(
+        name="schema.required_tables",
+        ok=(len(missing) == 0),
+        details={"schema": schema, "missing": missing, "found_count": len(existing)},
+    )
+
+
+def test_required_columns(engine: sa.Engine, schema: str, table_specs: Dict[str, Any]) -> List[TestResult]:
+    results: List[TestResult] = []
+    for table_name, spec in table_specs.items():
+        req_cols: List[str] = spec.get("required_columns", [])
+        cols = schema_columns(engine, schema, table_name)
+        missing = [c for c in req_cols if c not in cols]
+        results.append(
+            TestResult(
+                name=f"schema.required_columns.{table_name}",
+                ok=(len(missing) == 0),
+                details={"missing": missing, "existing_columns": sorted(list(cols.keys()))[:50]},
+            )
+        )
+    return results
+
+
+def test_unique(engine: sa.Engine, schema: str, table: str, column: str, where: Optional[str] = None) -> TestResult:
+    where_sql = f"where {where}" if where else ""
+    sql = f"""
+        select count(*) as dup_count
+        from (
+            select {column}, count(*) c
+            from {schema}.{table}
+            {where_sql}
+            group by {column}
+            having count(*) > 1
+        ) d
+    """
+    dup_count = int(query_one(engine, sql) or 0)
+    return TestResult(
+        name=f"dq.unique.{table}.{column}",
+        ok=(dup_count == 0),
+        details={"duplicates_groups": dup_count, "where": where},
+    )
+
+
+def test_not_null(engine: sa.Engine, schema: str, table: str, column: str, where: Optional[str] = None) -> TestResult:
+    where_sql = f"and ({where})" if where else ""
+    sql = f"""
+        select count(*) as null_count
+        from {schema}.{table}
+        where {column} is null
+        {where_sql}
+    """
+    null_count = int(query_one(engine, sql) or 0)
+    return TestResult(
+        name=f"dq.not_null.{table}.{column}",
+        ok=(null_count == 0),
+        details={"null_count": null_count, "where": where},
+    )
+
+
+def test_accepted_values(engine: sa.Engine, schema: str, table: str, column: str, values: List[Any]) -> TestResult:
+    # Note: params binding for list is DB-driver specific; easiest is safe literalization here because values are controlled in config.
+    safe_vals = ", ".join([sa.literal(v).compile(compile_kwargs={"literal_binds": True}) for v in values])
+    sql = f"""
+        select count(*) as bad_count
+        from {schema}.{table}
+        where {column} is not null
+          and {column} not in ({safe_vals})
+    """
+    bad = int(query_one(engine, sql) or 0)
+    return TestResult(
+        name=f"dq.accepted_values.{table}.{column}",
+        ok=(bad == 0),
+        details={"bad_count": bad, "accepted_values": values},
+    )
+
+
+def test_relationship(engine: sa.Engine, schema: str, child_table: str, child_key: str, parent_table: str, parent_key: str) -> TestResult:
+    # counts child rows whose FK isn't found in parent (excluding null)
+    sql = f"""
+        select count(*) as orphan_count
+        from {schema}.{child_table} c
+        left join {schema}.{parent_table} p
+          on c.{child_key} = p.{parent_key}
+        where c.{child_key} is not null
+          and p.{parent_key} is null
+    """
+    orphan = int(query_one(engine, sql) or 0)
+    return TestResult(
+        name=f"dq.relationships.{child_table}.{child_key}_to_{parent_table}.{parent_key}",
+        ok=(orphan == 0),
+        details={"orphan_count": orphan},
+    )
+
+
+def test_kpi_query(engine: sa.Engine, kpi_name: str, sql: str, invariants: Dict[str, Any]) -> TestResult:
+    val = query_one(engine, sql)
+    ok = True
+    problems = []
+
+    if val is None:
+        ok = False
+        problems.append("kpi_returned_null")
+
+    # Basic invariants: non_negative, min, max
+    if val is not None:
+        try:
+            v = float(val)
+            if invariants.get("non_negative") and v < 0:
+                ok = False
+                problems.append("negative_value")
+            if "min" in invariants and v < float(invariants["min"]):
+                ok = False
+                problems.append("below_min")
+            if "max" in invariants and v > float(invariants["max"]):
+                ok = False
+                problems.append("above_max")
+        except Exception:
+            # Some KPIs may be composite JSON; keep it simple
+            pass
+
+    return TestResult(
+        name=f"kpi.{kpi_name}",
+        ok=ok,
+        details={"value": val, "problems": problems, "invariants": invariants},
+    )
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--config", default="control_center_test_config.yml")
+    ap.add_argument("--schema", default="public")
+    ap.add_argument("--json-out", default="test_results.json")
+    args = ap.parse_args()
+
+    cfg = load_config(args.config)
+
+    database_url = _env("DATABASE_URL")
+    if not database_url:
+        print("ERROR: DATABASE_URL is required", file=sys.stderr)
+        return 2
+
+    engine = pg_engine(database_url)
+
+    results: List[TestResult] = []
+
+    # 1) Schema checks
+    required_tables = cfg.get("required_tables", [])
+    results.append(test_required_tables(engine, args.schema, required_tables))
+
+    table_specs = cfg.get("table_specs", {})
+    results.extend(test_required_columns(engine, args.schema, table_specs))
+
+    # 2) DQ checks
+    for chk in cfg.get("dq_checks", []):
+        t = chk["type"]
+        if t == "unique":
+            results.append(test_unique(engine, args.schema, chk["table"], chk["column"], chk.get("where")))
+        elif t == "not_null":
+            results.append(test_not_null(engine, args.schema, chk["table"], chk["column"], chk.get("where")))
+        elif t == "accepted_values":
+            results.append(test_accepted_values(engine, args.schema, chk["table"], chk["column"], chk["values"]))
+        elif t == "relationships":
+            results.append(
+                test_relationship(engine, args.schema,
+                                  chk["child_table"], chk["child_key"],
+                                  chk["parent_table"], chk["parent_key"])
+            )
+        else:
+            results.append(TestResult(name=f"dq.unknown.{t}", ok=False, details={"check": chk}))
+
+    # 3) KPI sanity
+    for k in cfg.get("kpi_checks", []):
+        results.append(test_kpi_query(engine, k["name"], k["sql"], k.get("invariants", {})))
+
+    # 4) Optional dbt tests (dbt emphasizes unique/not_null/accepted_values/relationships as core checks)
+    if _env("RUN_DBT") == "1":
+        results.append(run_subprocess("dbt.test", cfg.get("dbt_test_cmd", "dbt test")))
+
+    # 5) Optional Great Expectations checkpoint (GE uses checkpoints as primary production validation abstraction)
+    if _env("RUN_GE") == "1":
+        checkpoint = cfg.get("ge_checkpoint", "default")
+        results.append(run_subprocess("great_expectations.checkpoint", f"great_expectations checkpoint run {checkpoint}"))
+
+    # 6) Optional UI smoke
+    if _env("RUN_PLAYWRIGHT") == "1":
+        results.append(run_subprocess("ui.playwright", cfg.get("playwright_cmd", "npx playwright test")))
+
+    # Summarize
+    ok = all(r.ok for r in results)
+    out = {
+        "ok": ok,
+        "results": [r.__dict__ for r in results],
+        "ts": int(time.time()),
+    }
+    with open(args.json_out, "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=2)
+
+    print(f"Wrote {args.json_out}. Overall OK={ok}")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+```
+
+### Sample config: `control_center_test_config.yml`
+
+This is deliberately minimal; expand as your actual schema solidifies.
+
+```yaml
+required_tables:
+  - patients
+  - encounters
+  - appointments
+  - referrals
+  - leads
+  - campaigns
+  - campaign_touches
+  - channels
+  - physicians
+  - service_lines
+  - campuses
+  - kpi_snapshots
+  - users
+  - roles
+  - audit_log
+
+table_specs:
+  patients:
+    required_columns: [patient_id, enterprise_patient_key, first_seen_date]
+  referrals:
+    required_columns: [referral_id, patient_id, created_ts]
+  appointments:
+    required_columns: [appointment_id, patient_id, start_ts, status]
+  kpi_snapshots:
+    required_columns: [snapshot_id, snapshot_date, kpi_name, kpi_value, freshness_score, completeness_score]
+
+dq_checks:
+  - type: not_null
+    table: patients
+    column: patient_id
+  - type: unique
+    table: patients
+    column: patient_id
+
+  - type: not_null
+    table: referrals
+    column: referral_id
+  - type: unique
+    table: referrals
+    column: referral_id
+
+  - type: relationships
+    child_table: referrals
+    child_key: patient_id
+    parent_table: patients
+    parent_key: patient_id
+
+  - type: accepted_values
+    table: appointments
+    column: status
+    values: ["free", "booked", "cancelled", "completed", "no_show"]
+
+kpi_checks:
+  - name: "referrals_created_last_7d"
+    sql: |
+      select count(*) from public.referrals
+      where created_ts >= now() - interval '7 days'
+    invariants:
+      non_negative: true
+
+  - name: "median_referral_to_consult_days_last_30d"
+    sql: |
+      select percentile_cont(0.5) within group
+             (order by extract(epoch from (completed_ts - created_ts))/86400.0)
+      from public.referrals
+      where completed_ts is not null
+        and created_ts >= now() - interval '30 days'
+    invariants:
+      non_negative: true
+      min: 0
+      max: 365
+
+dbt_test_cmd: "dbt test"
+ge_checkpoint: "control_center_default"
+playwright_cmd: "npx playwright test"
+```
+
+## Part two: Evaluation script
+
+### What “evaluation” means here
+
+Testing answers: “Did we break it today?”  
+Evaluation answers: “Is this system becoming **more trustworthy** over time—especially with agents and an LLM?”
+
+This evaluation script produces:
+- A **Dashboard Trust Report** (JSON + Markdown)
+- KPI SLA compliance (freshness, completeness)
+- “Anomaly quality” signal (how many alerts were actionable vs noise)
+- Agent reliability (success rate, incident rate, mean time to detect/fix, “learning ledger” growth)
+- LLM agent safety & usefulness score (structured output compliance, prompt injection resistance, PHI leakage checks)
+
+This approach follows:
+- GE’s notion of capturing validation outcomes over time (Data Docs / validation results). citeturn0search6turn3search5  
+- dbt’s emphasis on essential DQ checks to protect downstream metric trust. citeturn4search3  
+- OWASP LLM Top 10 framing for LLM app vulnerabilities (prompt injection, sensitive data leakage, etc.). citeturn2search2  
+- NIST AI RMF’s intent: manage risks to support trustworthy AI usage in organizations. citeturn1search3  
+
+### Evaluation script: `scripts/evaluate_control_center.py`
+
+```python
+#!/usr/bin/env python3
+"""
+Control Center Evaluation Harness
+
+Produces a periodic evaluation report:
+- KPI SLA compliance (freshness/completeness)
+- Trend volatility and anomaly count
+- Agent reliability and incident ledger metrics
+- Optional: LLM assistant eval (OpenRouter) on a fixed question set
+
+This script is designed to become the weekly "trust report" that wins over skeptical execs.
+"""
+
+from __future__ import annotations
+
+import os
+import json
+import time
+import math
+import argparse
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+
+import requests
+import sqlalchemy as sa
+
+
+def _env(name: str, default: Optional[str] = None) -> Optional[str]:
+    v = os.getenv(name, default)
+    return v if v not in ("", None) else default
+
+
+def pg_engine(database_url: str) -> sa.Engine:
+    return sa.create_engine(database_url, pool_pre_ping=True)
+
+
+def query_all(engine: sa.Engine, sql: str, params: Optional[Dict[str, Any]] = None) -> List[Tuple]:
+    with engine.connect() as conn:
+        return list(conn.execute(sa.text(sql), params or {}).fetchall())
+
+
+def query_one(engine: sa.Engine, sql: str, params: Optional[Dict[str, Any]] = None) -> Any:
+    with engine.connect() as conn:
+        return conn.execute(sa.text(sql), params or {}).scalar()
+
+
+def pct(n: float, d: float) -> float:
+    return 0.0 if d == 0 else round(100.0 * n / d, 2)
+
+
+def safe_float(x: Any) -> Optional[float]:
+    try:
+        return None if x is None else float(x)
+    except Exception:
+        return None
+
+
+def compute_kpi_sla(engine: sa.Engine, days: int, freshness_min: float, completeness_min: float) -> Dict[str, Any]:
+    rows = query_all(
+        engine,
+        """
+        select
+          kpi_name,
+          count(*) as n,
+          sum(case when freshness_score >= :fresh_ok then 1 else 0 end) as fresh_ok,
+          sum(case when completeness_score >= :comp_ok then 1 else 0 end) as comp_ok,
+          avg(freshness_score) as avg_fresh,
+          avg(completeness_score) as avg_comp
+        from public.kpi_snapshots
+        where snapshot_date >= current_date - :days
+        group by kpi_name
+        order by kpi_name
+        """,
+        {"days": days, "fresh_ok": freshness_min, "comp_ok": completeness_min},
+    )
+
+    out = []
+    for kpi, n, fresh_ok, comp_ok, avg_fresh, avg_comp in rows:
+        out.append({
+            "kpi_name": kpi,
+            "n": int(n),
+            "fresh_ok_pct": pct(float(fresh_ok or 0), float(n)),
+            "comp_ok_pct": pct(float(comp_ok or 0), float(n)),
+            "avg_freshness": round(float(avg_fresh or 0), 3),
+            "avg_completeness": round(float(avg_comp or 0), 3),
+        })
+    return {"window_days": days, "freshness_min": freshness_min, "completeness_min": completeness_min, "kpis": out}
+
+
+def compute_volatility(engine: sa.Engine, days: int) -> Dict[str, Any]:
+    # Basic day-over-day volatility proxy for each KPI
+    rows = query_all(
+        engine,
+        """
+        with t as (
+          select
+            kpi_name,
+            snapshot_date,
+            kpi_value,
+            lag(kpi_value) over (partition by kpi_name order by snapshot_date) as prev_value
+          from public.kpi_snapshots
+          where snapshot_date >= current_date - :days
+        )
+        select
+          kpi_name,
+          count(*) filter (where prev_value is not null) as n_changes,
+          avg(abs((kpi_value - prev_value) / nullif(prev_value,0))) as avg_rel_change
+        from t
+        group by kpi_name
+        order by kpi_name
+        """,
+        {"days": days},
+    )
+    out = []
+    for kpi, n_changes, avg_rel_change in rows:
+        out.append({
+            "kpi_name": kpi,
+            "n_changes": int(n_changes or 0),
+            "avg_rel_change": None if avg_rel_change is None else round(float(avg_rel_change), 4),
+        })
+    return {"window_days": days, "volatility": out}
+
+
+def compute_agent_reliability(engine: sa.Engine, days: int) -> Dict[str, Any]:
+    """
+    Expects tables (recommended to add if not present):
+      agent_runs(agent_name, started_at, finished_at, status, error_code)
+      agent_incidents(agent_name, incident_ts, severity, status, root_cause, fix_applied, reviewed_by)
+    If missing, returns 'unavailable' without failing the whole report.
+    """
+    try:
+        run_rows = query_all(
+            engine,
+            """
+            select
+              agent_name,
+              count(*) as n,
+              sum(case when status='success' then 1 else 0 end) as ok,
+              sum(case when status='error' then 1 else 0 end) as err
+            from public.agent_runs
+            where started_at >= now() - (:days || ' days')::interval
+            group by agent_name
+            order by agent_name
+            """,
+            {"days": days},
+        )
+        inc_rows = query_all(
+            engine,
+            """
+            select
+              agent_name,
+              count(*) as incidents,
+              sum(case when status='open' then 1 else 0 end) as open_incidents
+            from public.agent_incidents
+            where incident_ts >= now() - (:days || ' days')::interval
+            group by agent_name
+            order by agent_name
+            """,
+            {"days": days},
+        )
+    except Exception as e:
+        return {"window_days": days, "status": "unavailable", "reason": str(e)}
+
+    inc_map = {r[0]: {"incidents": int(r[1]), "open_incidents": int(r[2] or 0)} for r in inc_rows}
+    out = []
+    for agent_name, n, ok, err in run_rows:
+        a = str(agent_name)
+        out.append({
+            "agent_name": a,
+            "runs": int(n),
+            "success_pct": pct(float(ok or 0), float(n)),
+            "error_pct": pct(float(err or 0), float(n)),
+            **inc_map.get(a, {"incidents": 0, "open_incidents": 0}),
+        })
+    return {"window_days": days, "status": "ok", "agents": out}
+
+
+def openrouter_chat(api_key: str, model: str, messages: List[Dict[str, str]], response_format: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    OpenRouter's chat completions endpoint is compatible with OpenAI-style messages,
+    and supports structured outputs via response_format for compatible models.
+    """
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        # Optional attribution headers per OpenRouter docs:
+        "HTTP-Referer": _env("APP_URL", "http://localhost"),
+        "X-OpenRouter-Title": _env("APP_NAME", "Northside Control Center"),
+    }
+    payload: Dict[str, Any] = {"model": model, "messages": messages}
+    if response_format is not None:
+        payload["response_format"] = response_format
+
+    r = requests.post(url, headers=headers, json=payload, timeout=60)
+    r.raise_for_status()
+    return r.json()
+
+
+def evaluate_llm_assistant(engine: sa.Engine, days: int, eval_cases_path: str) -> Dict[str, Any]:
+    """
+    Runs a small offline evaluation against a fixed question set.
+    Uses OpenRouter structured outputs when available to reduce parsing errors/hallucinated fields.
+    """
+    api_key = _env("OPENROUTER_API_KEY")
+    if not api_key:
+        return {"status": "skipped", "reason": "OPENROUTER_API_KEY not set"}
+
+    # Model selection is intentionally externalized. See the model-selection helper in the next section.
+    model = _env("OPENROUTER_MODEL", "openai/gpt-4")
+
+    with open(eval_cases_path, "r", encoding="utf-8") as f:
+        cases = json.load(f)
+
+    # JSON schema we require from the assistant:
+    schema = {
+        "type": "object",
+        "properties": {
+            "route_to_page": {"type": "string"},
+            "filters": {"type": "object"},
+            "sql": {"type": "string"},
+            "answer_summary": {"type": "string"},
+            "safe_output": {"type": "boolean"},
+            "notes": {"type": "string"},
+        },
+        "required": ["route_to_page", "filters", "sql", "answer_summary", "safe_output"],
+        "additionalProperties": False,
+    }
+
+    response_format = {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "dashboard_query_plan",
+            "schema": schema,
+            "strict": True,
+        }
+    }
+
+    results = []
+    for c in cases:
+        q = c["question"]
+        expected_min = c.get("expected_min")
+        expected_max = c.get("expected_max")
+
+        messages = [
+            {"role": "system", "content": "You are the Northside Control Center assistant. Never output PHI. Prefer aggregates. Provide a page route + filters + SQL."},
+            {"role": "user", "content": q},
+        ]
+
+        try:
+            resp = openrouter_chat(api_key, model, messages, response_format=response_format)
+            content = resp["choices"][0]["message"]["content"]
+            plan = json.loads(content)
+        except Exception as e:
+            results.append({"question": q, "ok": False, "error": str(e)})
+            continue
+
+        # Execute SQL (read-only) — your DB role should enforce least privilege.
+        sql = plan["sql"]
+        try:
+            val = query_one(engine, sql)
+        except Exception as e:
+            results.append({"question": q, "ok": False, "error": f"sql_failed: {e}", "sql": sql})
+            continue
+
+        v = safe_float(val)
+        ok = True
+        if plan.get("safe_output") is not True:
+            ok = False
+        if v is not None and expected_min is not None and v < float(expected_min):
+            ok = False
+        if v is not None and expected_max is not None and v > float(expected_max):
+            ok = False
+
+        results.append({
+            "question": q,
+            "ok": ok,
+            "plan": plan,
+            "value": val,
+            "model": model,
+        })
+
+    passed = sum(1 for r in results if r.get("ok"))
+    return {"status": "ok", "model": model, "cases": len(results), "passed": passed, "pass_rate": pct(passed, len(results)), "results": results}
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--days", type=int, default=30)
+    ap.add_argument("--freshness-min", type=float, default=0.85)
+    ap.add_argument("--completeness-min", type=float, default=0.90)
+    ap.add_argument("--llm-eval-cases", default="llm_eval_cases.json")
+    ap.add_argument("--out-json", default="evaluation_report.json")
+    ap.add_argument("--out-md", default="evaluation_report.md")
+    args = ap.parse_args()
+
+    database_url = _env("DATABASE_URL")
+    if not database_url:
+        print("ERROR: DATABASE_URL is required", file=sys.stderr)
+        return 2
+
+    engine = pg_engine(database_url)
+
+    report: Dict[str, Any] = {
+        "generated_ts": int(time.time()),
+        "window_days": args.days,
+        "kpi_sla": compute_kpi_sla(engine, args.days, args.freshness_min, args.completeness_min),
+        "kpi_volatility": compute_volatility(engine, args.days),
+        "agent_reliability": compute_agent_reliability(engine, args.days),
+        "llm_eval": evaluate_llm_assistant(engine, args.days, args.llm_eval_cases),
+    }
+
+    with open(args.out_json, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2)
+
+    # Minimal Markdown rendering (keep it board-readable)
+    lines = []
+    lines.append(f"# Control Center Trust Report (last {args.days} days)")
+    lines.append("")
+    lines.append("## KPI SLA summary")
+    lines.append(f"- Freshness minimum: {args.freshness_min}")
+    lines.append(f"- Completeness minimum: {args.completeness_min}")
+    lines.append("")
+    for k in report["kpi_sla"]["kpis"][:30]:
+        lines.append(f"- {k['kpi_name']}: fresh_ok={k['fresh_ok_pct']}% comp_ok={k['comp_ok_pct']}%")
+
+    lines.append("")
+    lines.append("## Agent reliability (if enabled)")
+    ar = report["agent_reliability"]
+    lines.append(f"- Status: {ar.get('status')}")
+    if ar.get("status") == "ok":
+        for a in ar["agents"]:
+            lines.append(f"- {a['agent_name']}: success={a['success_pct']}% incidents={a['incidents']} open={a['open_incidents']}")
+
+    lines.append("")
+    lines.append("## LLM assistant evaluation")
+    le = report["llm_eval"]
+    lines.append(f"- Status: {le.get('status')}")
+    if le.get("status") == "ok":
+        lines.append(f"- Model: {le.get('model')} pass_rate={le.get('pass_rate')}% ({le.get('passed')}/{le.get('cases')})")
+    else:
+        lines.append(f"- Reason: {le.get('reason')}")
+
+    with open(args.out_md, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+    print(f"Wrote {args.out_json} and {args.out_md}")
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    raise SystemExit(main())
+```
+
+### Sample LLM eval cases: `llm_eval_cases.json`
+
+Keep this small at first, then grow it as your “error ledger” grows.
+
+```json
+[
+  {
+    "question": "How many referrals were created in the last 7 days for oncology?",
+    "expected_min": 0,
+    "expected_max": 100000
+  },
+  {
+    "question": "What is the median days from referral creation to referral completion in the last 30 days?",
+    "expected_min": 0,
+    "expected_max": 365
+  },
+  {
+    "question": "Show net-new oncology patients month-to-date by tumor site (aggregate only)."
+  }
+]
+```
+
+## LLM dashboard assistant using OpenRouter
+
+### Why OpenRouter and how to do it safely
+
+OpenRouter’s API is OpenAI-style and supports `/api/v1/chat/completions`, tool calling, and structured output enforcement via JSON Schema when the model supports it. citeturn0search2turn5search3turn5search6  
+OpenRouter also supports listing models via `/api/v1/models`, which you can use to automatically select models that support the parameters you need (e.g., `tools`, `response_format`). citeturn5search0
+
+### Key handling (your 1Password OpenRouter key)
+
+I can’t access your 1Password vault directly. Operationally, the safest practice is:
+- Retrieve the OpenRouter key from 1Password on your machine.
+- Export it into your runtime as an environment variable **without pasting it into chat**:
+  - `export OPENROUTER_API_KEY="..."`
+
+### Model selection helper (auto-pick a tool-capable model)
+
+This script queries `/api/v1/models` and selects a model that supports tool calling and structured outputs when possible.
+
+```python
+# scripts/select_openrouter_model.py
+import os, requests
+
+def pick_model(prefer_low_cost=True):
+    api_key = os.environ["OPENROUTER_API_KEY"]
+    r = requests.get(
+        "https://openrouter.ai/api/v1/models",
+        headers={"Authorization": f"Bearer {api_key}"}
+    )
+    r.raise_for_status()
+    models = r.json()["data"]
+
+    # Prefer models that advertise support for tools and response_format (structured outputs).
+    candidates = []
+    for m in models:
+        sp = set((m.get("top_provider") or {}).get("supported_parameters", []) or [])
+        # OpenRouter docs note supported_parameters may be union across providers; still a useful filter. citeturn5search1
+        has_tools = ("tools" in sp)
+        has_structured = ("response_format" in sp) or ("response_format" in (m.get("supported_parameters") or []))
+        if has_tools:
+            candidates.append((has_structured, m))
+
+    if not candidates:
+        return "openai/gpt-4"  # conservative fallback example from OpenRouter docs. citeturn0search2
+
+    # Rank: structured outputs first, then context length, then (optionally) cost.
+    def score(item):
+        has_structured, m = item
+        ctx = float((m.get("top_provider") or {}).get("context_length", 0) or 0)
+        price_prompt = float(((m.get("pricing") or {}).get("prompt")) or 0.0)
+        price_completion = float(((m.get("pricing") or {}).get("completion")) or 0.0)
+        price = price_prompt + price_completion
+        return (1 if has_structured else 0, ctx, -price if prefer_low_cost else 0)
+
+    best = sorted(candidates, key=score, reverse=True)[0][1]
+    return best["id"]
+
+if __name__ == "__main__":
+    print(pick_model())
+```
+
+### How the LLM assistant behaves (CMO-simple, drilldown-deep)
+
+The assistant should never dump a wall of text. It should return:
+
+- A **single sentence answer** (“Up 12% MTD; biggest driver is Breast at Cumming campus.”)
+- A **button-like route** (“Open: Oncology → Funnel → Tumor Site: Breast → Campus: Cumming → Date: MTD”)
+- Optional **one chart suggestion** (“Show waterfall funnel + driver table.”)
+- A link to the **Data Trust** explanation for that number
+
+Structured outputs help enforce this kind of deterministic interface. citeturn5search6
+
+## Five high-value agents a CMO/CTO/CEO would trust, plus the monitoring stack
+
+### The five “front-facing” agents
+
+Each agent is deliberately narrow (so it is auditable) but impactful (so it feels like executive leverage).
+
+| Agent | Primary user | What it does in plain language | What it touches across the stack |
+|---|---|---|---|
+| CMO Concierge (LLM “Ask the Control Center”) | CMO/CEO | Answers natural-language questions using **only approved aggregates**, routes you to the exact page/filter state, and shows the data-trust basis. Uses tool calling + structured outputs for reliability. citeturn5search3turn5search6 | Dashboard UI + read-only SQL views + KPI dictionary |
+| Access Bottleneck Sentinel | COO/Access leader/CMO | Watches next-available appt, referral→consult time, call center abandon/hold; explains drops with likely causes; recommends operational actions (capacity shifts, routing, callback rules). | Scheduling feeds (FHIR/HL7), call center metrics, appointments |
+| Referral Leakage Investigator | Service line leaders + physician liaisons | Finds where referrals leak (created→contacted→scheduled→completed→leaked) and which physicians/practices are most affected; produces “win-back” lists + scripts. Uses referral objects consistent with FHIR ServiceRequest patterns where relevant. citeturn1search0 | Referrals, provider directory, liaison activity log |
+| Cardio‑Oncology Gap Closer | Cardio-onc program manager | Tracks eligibility→screening→enrollment→adherence; flags where the program is losing high‑risk patients; suggests specific operational workflow fixes. | EHR flags (FHIR), program registry, scheduling |
+| Margin & Evidence Auditor | CFO partner + CMO | Produces board-ready “evidence packs” for ROI: cohort definitions, attribution method used, confidence signals, and reconciliation notes. Anchors credibility. | Finance (SAP extracts), cohort logic, attribution model outputs |
+
+### The “stacked safety agents” that make the above trustworthy
+
+To make a legacy-systems CMO trust agents, you need visible guardrails. These are backstage agents that monitor the five value agents.
+
+| Monitoring agent | What it monitors | What it logs (for your “error ledger”) |
+|---|---|---|
+| PHI Gatekeeper | Scans outputs for disallowed identifiers/fields; blocks unsafe drilldowns | blocked_output_count, PHI_pattern_hits, role_violation_events |
+| Evidence & Lineage Agent | Requires agents to attach SQL lineage / dataset timestamps / trust scores | missing_lineage_events, stale_data_events |
+| Prompt Injection Firewall | Tests for OWASP-style injection patterns and tool-abuse attempts | injection_attempts, bypass_attempts, tool_misuse_events citeturn2search2 |
+| Regression & Drift Monitor | Detects if KPI outputs drift due to data changes or model changes | drift_alerts, false_positive_rate, new_test_cases_added |
+| Human Approval Gate (for actions) | Forces approvals for actions that change workflow (e.g., outreach lists) | approvals, rejections, rationale, reviewer |
+
+This aligns with the spirit of NIST AI RMF: operational risk management to increase trustworthiness of AI systems. citeturn1search3
+
+### Mermaid: agent stack visualization
+
+```mermaid
+flowchart TB
+  subgraph UI["Dashboard UI"]
+    A1["Ask the Control Center\n(LLM Concierge)"]
+    A2["Agent Trust Drawer\n(quiet icon + drilldown)"]
+  end
+
+  subgraph ValueAgents["Front-facing Value Agents"]
+    B1["Access Bottleneck Sentinel"]
+    B2["Referral Leakage Investigator"]
+    B3["Cardio-Onc Gap Closer"]
+    B4["Margin & Evidence Auditor"]
+  end
+
+  subgraph SafetyStack["Stacked Safety + Monitoring Agents"]
+    S1["PHI Gatekeeper"]
+    S2["Evidence & Lineage Agent"]
+    S3["Prompt Injection Firewall"]
+    S4["Regression & Drift Monitor"]
+    S5["Human Approval Gate\n(for actions)"]
+  end
+
+  subgraph Data["Data + Platforms"]
+    D1["Supabase/Postgres\n(kpi_snapshots, audit_log, agent ledger)"]
+    D2["Foundry / governed datasets"]
+    D3["EHR feeds (FHIR/HL7)\nReferrals/Appts/Encounters"]
+    D4["Finance (SAP)\nContribution margin inputs"]
+  end
+
+  A1 -->|tool calls| D1
+  B1 --> D1
+  B2 --> D1
+  B3 --> D1
+  B4 --> D1
+  D2 --> D1
+  D3 --> D2
+  D4 --> D2
+
+  B1 --> S1
+  B2 --> S1
+  B3 --> S1
+  B4 --> S1
+
+  S1 --> D1
+  S2 --> D1
+  S3 --> D1
+  S4 --> D1
+  S5 --> D1
+
+  A2 --> D1
+  A2 --> SafetyStack
+```
+
+## Where this shows up on the dashboard without being “in your face”
+
+A 30-year CMO wants simplicity first. So the agent system should not dominate the UI.
+
+Recommended placement:
+
+- **A small “shield” icon** next to the existing **Data Trust** badge (top right).
+- Clicking it opens an **Agent Trust Drawer** (side panel). The drawer has:
+  - “Are agents healthy?” (green/yellow/red)
+  - “Incidents last 7 days” and “Open incidents”
+  - “New guardrails added this week” (proof of learning)
+  - Drilldown: per-agent run log, blocked unsafe outputs, approvals, evidence packs
+
+This mirrors what Foundry makes possible at the data platform level via granular object/property security policies (row/column/cell controls), and what Supabase encourages at the app DB layer via Postgres RLS defense-in-depth—useful because your system spans both governance planes. citeturn3search0turn2search1
+
+## Web research sources used
+
+OpenRouter API capabilities (chat completions endpoint, model listing, tool calling, structured outputs): citeturn0search2turn5search0turn5search3turn5search6  
+Great Expectations concepts (expectation suites, checkpoints, data docs): citeturn0search3turn3search5turn0search6turn0search5  
+Playwright tracing (debugging failed UI tests): citeturn0search4  
+dbt’s recommended “essential” data quality checks (unique, not_null, accepted_values, relationships): citeturn4search3  
+OWASP Top 10 for LLM Applications (security lens for LLM + agents): citeturn2search2  
+NIST AI RMF 1.0 (trustworthy AI risk management framing): citeturn1search3  
+FHIR ServiceRequest (referral-related modeling basis): citeturn1search0

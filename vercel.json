@@ -5,8 +5,10 @@
   "installCommand": "corepack enable && pnpm install",
   "buildCommand": "pnpm -r --filter @workspace/api-server run build && BASE_PATH=/ pnpm -r --filter @workspace/control-tower run build",
   "outputDirectory": "artifacts/control-tower/dist/public",
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" }
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/api/(.*)", "dest": "/api" },
+    { "src": "/.*", "dest": "/index.html" }
   ],
   "functions": {
     "api/index.mjs": {

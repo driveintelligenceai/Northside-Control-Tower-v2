@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarCheck, Stethoscope, ArrowRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { KpiTrustBadge } from "@/components/kpi-trust-badge";
 
 export default function BookingsPage() {
   const [period, setPeriod] = useState<"7d" | "30d" | "90d">("30d");
@@ -78,7 +79,10 @@ export default function BookingsPage() {
             
             <div className="mt-8 pt-6 border-t border-border grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">
-                <div className="text-sm text-muted-foreground">Overall Conv. Rate</div>
+                <div className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+                  Overall Conv. Rate
+                  <KpiTrustBadge metricKey="bookings.overall_conversion" />
+                </div>
                 <div className="text-2xl font-bold text-accent mt-1">{formatPercent(funnel?.overallConversionRate)}</div>
               </div>
             </div>

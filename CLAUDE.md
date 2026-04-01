@@ -10,6 +10,17 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 **Database**: Neon PostgreSQL via Vercel Marketplace (auto-provisioned `DATABASE_URL`)
 **Migrated from**: Replit on 2026-04-01
 
+## Quick Start
+
+```bash
+git clone https://github.com/driveintelligenceai/Northside-Control-Tower.git
+cd Northside-Control-Tower
+pnpm install
+vercel link --yes --project northside-control-tower
+vercel env pull .env.local --yes
+PORT=5173 BASE_PATH=/ pnpm --filter @workspace/control-tower run dev
+```
+
 ## Stack
 
 - **Monorepo tool**: pnpm workspaces
@@ -26,7 +37,7 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 ## Structure
 
 ```text
-artifacts-monorepo/
+Northside-Control-Tower/
 ├── artifacts/              # Deployable applications
 │   ├── api-server/         # Express API server (port 8080)
 │   ├── control-tower/      # React + Vite frontend (previewPath: /)
@@ -213,3 +224,12 @@ vercel logs <url>          # Check runtime logs
 - `DATABASE_URL` / `POSTGRES_URL` — Neon pooled connection string
 - `POSTGRES_URL_NON_POOLING` — Direct connection (for migrations)
 - `PGHOST`, `PGDATABASE`, `PGUSER`, `PGPASSWORD` — Individual connection params
+
+## Migration History & Gotchas
+
+- **Migrated from Replit 2026-04-01** — Replit uses Neon PostgreSQL (not Supabase, not their own DB)
+- **Do NOT use Supabase** for this project — Supavisor pooler has SSL cert chain issues with `pg` module ("self-signed certificate in certificate chain")
+- **vercel.json uses `routes`** (not `rewrites`) — includes `"handle": "filesystem"` + SPA catch-all to `/index.html`
+- **`@replit/vite-plugin-*`** packages are still in `package.json` — loaded conditionally only when `REPL_ID` env exists (harmless on Vercel/local)
+- **pnpm-workspace.yaml** — Replit platform binary overrides were removed; pnpm now installs native binaries for the current platform
+- **Vercel project name must be lowercase** — `northside-control-tower` not `Northside-Control-Tower`
