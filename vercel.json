@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "framework": null,
+  "installCommand": "corepack enable && pnpm install",
+  "buildCommand": "pnpm -r --filter @workspace/control-tower run build",
+  "outputDirectory": "artifacts/control-tower/dist/public",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" }
+  ],
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 30
+    }
+  }
+}
