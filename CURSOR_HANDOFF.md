@@ -105,6 +105,49 @@ Only these files differ from the Replit codebase:
 | `api/index.mjs` | NEW: Vercel function wrapper | Routes /api/* to Express |
 | `vercel.json` | NEW: deployment config | Build commands, rewrites, function config |
 
+## Pixel-Perfect Verification (Run Before Any Changes)
+
+Three deployments must be visually identical (same layout, branding, components — data values will differ due to random seeding):
+
+| Version | URL/Path | Purpose |
+|---------|----------|---------|
+| **Replit (source of truth)** | https://northside-control-tower.replit.app | Original production |
+| **Vercel (migrated)** | https://northside-control-tower.vercel.app | Current production |
+| **Local dev** | http://localhost:5173 | Your working copy |
+| **Archive backup** | `~/Developer/tools/backups/20260401-111544-Northside-Control-Tower` | Pre-handoff snapshot |
+
+### Verification Procedure
+
+For each of the 8 pages (`/`, `/attribution`, `/campaigns`, `/bookings`, `/content`, `/agents`, `/alerts`, `/departments`):
+
+1. Open the page on **Replit** and **Vercel** side-by-side
+2. Compare: sidebar layout, nav items, header, KPI cards, charts, tables, colors, fonts, spacing
+3. Open the same page on **localhost:5173** after starting local dev
+4. Any visual difference = bug. Fix before proceeding.
+
+**Expected differences (not bugs):**
+- KPI numbers/percentages (random seed data — structure must match, values will differ)
+- Chart data points (same reason)
+- Alert timestamps (time-relative)
+- The Vercel toolbar icon (bottom-right corner on Vercel only)
+
+**Actual bugs to fix if found:**
+- Missing sidebar items or different nav order
+- Different colors, fonts, or spacing
+- Missing charts, cards, or panels
+- Layout shifts or responsive breakage
+- Broken icons or missing assets
+
+### If Archive Needs Comparison
+
+The archive at `~/Developer/tools/backups/20260401-111544-Northside-Control-Tower` is a full copy with node_modules. To run it:
+
+```bash
+cd ~/Developer/tools/backups/20260401-111544-Northside-Control-Tower
+PORT=5174 BASE_PATH=/ pnpm --filter @workspace/control-tower run dev
+# Opens on port 5174 — compare with localhost:5173
+```
+
 ## Do NOT Change
 
 - The seed data randomization (numbers will differ from Replit but structure is identical)
