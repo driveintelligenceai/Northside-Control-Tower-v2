@@ -12,9 +12,11 @@ if (!databaseUrl) {
   );
 }
 
+const isLocal = databaseUrl.includes("localhost") || databaseUrl.includes("127.0.0.1");
+
 export const pool = new Pool({
   connectionString: databaseUrl,
-  ssl: databaseUrl.includes("supabase.com") ? { rejectUnauthorized: false } : undefined,
+  ssl: isLocal ? undefined : { rejectUnauthorized: false },
 });
 export const db = drizzle(pool, { schema });
 
