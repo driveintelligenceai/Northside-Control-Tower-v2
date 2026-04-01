@@ -2,7 +2,7 @@ import type { ElementType } from "react";
 import { useGetAttribution, useListLeadSources } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Network, GitMerge, Fingerprint, ArrowRight } from "lucide-react";
+import { Network, GitMerge, Fingerprint } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 export default function AttributionPage() {
@@ -12,7 +12,6 @@ export default function AttributionPage() {
   const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
   const formatPercent = (val: number) => `${val.toFixed(1)}%`;
 
-  // Prepare chart data comparing models
   const chartData = sources?.slice(0, 5).map(source => {
     const ft = attribution?.firstTouch.find(a => a.sourceName === source.name)?.conversions || 0;
     const lt = attribution?.lastTouch.find(a => a.sourceName === source.name)?.conversions || 0;
@@ -22,26 +21,21 @@ export default function AttributionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <Network className="h-8 w-8 text-primary" />
-          Source Attribution
-        </h2>
-        <p className="text-muted-foreground">Multi-touch path analysis identifying high-value lead sources.</p>
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">Source Attribution</h2>
+        <p className="text-muted-foreground text-sm mt-1">Multi-touch path analysis identifying high-value lead sources.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Models comparison overview */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
           <ModelCard title="First Touch" description="Discovery drivers" icon={Fingerprint} data={attribution?.firstTouch} loading={loadingAttr} />
           <ModelCard title="Multi-Touch" description="Journey contributors (Linear)" icon={Network} data={attribution?.multiTouch} loading={loadingAttr} highlight />
           <ModelCard title="Last Touch" description="Conversion drivers" icon={GitMerge} data={attribution?.lastTouch} loading={loadingAttr} />
         </div>
 
-        {/* Chart */}
-        <Card className="lg:col-span-3 bg-card border-card-border">
+        <Card className="lg:col-span-3 bg-white border-card-border shadow-sm">
           <CardHeader>
-            <CardTitle>Model Comparison (Top 5 Sources)</CardTitle>
+            <CardTitle className="text-base font-semibold">Model Comparison (Top 5 Sources)</CardTitle>
             <CardDescription>Conversion count variance across different attribution models</CardDescription>
           </CardHeader>
           <CardContent>
@@ -51,17 +45,17 @@ export default function AttributionPage() {
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                    <XAxis dataKey="name" stroke="#9CA3AF" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#9CA3AF" fontSize={12} tickLine={false} axisLine={false} />
                     <Tooltip 
-                      cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
-                      contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                      cursor={{ fill: 'rgba(0,59,113,0.04)' }}
+                      contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
                     />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                    <Bar dataKey="FirstTouch" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="MultiTouch" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="LastTouch" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="FirstTouch" fill="#003B71" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="MultiTouch" fill="#0073CF" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="LastTouch" fill="#4BA3E3" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -69,23 +63,22 @@ export default function AttributionPage() {
           </CardContent>
         </Card>
 
-        {/* Source Table */}
-        <Card className="lg:col-span-3 bg-card border-card-border">
+        <Card className="lg:col-span-3 bg-white border-card-border shadow-sm">
           <CardHeader>
-            <CardTitle>Lead Source Intelligence</CardTitle>
+            <CardTitle className="text-base font-semibold">Lead Source Intelligence</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="border border-border overflow-hidden">
+            <div className="border border-border rounded-md overflow-hidden">
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow className="hover:bg-transparent border-border">
-                    <TableHead>Source</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Total Leads</TableHead>
-                    <TableHead className="text-right">Conversions</TableHead>
-                    <TableHead className="text-right">Win Rate</TableHead>
-                    <TableHead className="text-right">Spend</TableHead>
-                    <TableHead className="text-right">CPL</TableHead>
+                    <TableHead className="text-foreground font-semibold">Source</TableHead>
+                    <TableHead className="text-foreground font-semibold">Category</TableHead>
+                    <TableHead className="text-right text-foreground font-semibold">Total Leads</TableHead>
+                    <TableHead className="text-right text-foreground font-semibold">Conversions</TableHead>
+                    <TableHead className="text-right text-foreground font-semibold">Win Rate</TableHead>
+                    <TableHead className="text-right text-foreground font-semibold">Spend</TableHead>
+                    <TableHead className="text-right text-foreground font-semibold">CPL</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -94,14 +87,14 @@ export default function AttributionPage() {
                       <TableCell colSpan={7} className="text-center py-8 text-muted-foreground animate-pulse">Loading sources...</TableCell>
                     </TableRow>
                   ) : sources?.map(source => (
-                    <TableRow key={source.id} className="border-border/50 hover:bg-muted/30 transition-colors">
-                      <TableCell className="font-medium">{source.name}</TableCell>
+                    <TableRow key={source.id} className="border-border hover:bg-muted/30 transition-colors">
+                      <TableCell className="font-medium text-foreground">{source.name}</TableCell>
                       <TableCell className="text-muted-foreground capitalize">{source.category.replace('_', ' ')}</TableCell>
                       <TableCell className="text-right font-mono">{source.totalLeads}</TableCell>
-                      <TableCell className="text-right font-mono text-primary">{source.convertedLeads}</TableCell>
+                      <TableCell className="text-right font-mono text-accent font-semibold">{source.convertedLeads}</TableCell>
                       <TableCell className="text-right">{formatPercent(source.conversionRate)}</TableCell>
                       <TableCell className="text-right text-muted-foreground">{formatCurrency(source.totalSpend)}</TableCell>
-                      <TableCell className="text-right font-mono text-accent">{formatCurrency(source.costPerLead)}</TableCell>
+                      <TableCell className="text-right font-mono">{formatCurrency(source.costPerLead)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -118,10 +111,10 @@ function ModelCard({ title, description, icon: Icon, data, loading, highlight = 
   const topSource = data?.[0];
 
   return (
-    <Card className={`border-card-border ${highlight ? 'border-primary/50 shadow-[0_0_15px_rgba(6,182,212,0.15)] bg-primary/5' : 'bg-card'}`}>
+    <Card className={`bg-white border-card-border shadow-sm ${highlight ? 'border-accent ring-1 ring-accent/20' : ''}`}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
-          <Icon className={`h-4 w-4 ${highlight ? 'text-primary' : ''}`} />
+        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
+          <Icon className={`h-4 w-4 ${highlight ? 'text-accent' : ''}`} />
           {title}
         </CardTitle>
         <CardDescription className="text-xs">{description}</CardDescription>
@@ -131,14 +124,14 @@ function ModelCard({ title, description, icon: Icon, data, loading, highlight = 
           <div className="h-12 flex items-center text-sm text-muted-foreground">Calculating...</div>
         ) : topSource ? (
           <div>
-            <div className="text-sm text-muted-foreground mb-1">Top Performer</div>
-            <div className="text-lg font-semibold text-foreground flex items-center justify-between">
+            <div className="text-xs text-muted-foreground mb-1">Top Performer</div>
+            <div className="text-base font-semibold text-foreground flex items-center justify-between">
               {topSource.sourceName}
-              <span className={`text-sm font-mono ${highlight ? 'text-primary' : 'text-accent'}`}>
+              <span className={`text-sm font-mono font-bold ${highlight ? 'text-accent' : 'text-primary'}`}>
                 {topSource.percentage.toFixed(1)}%
               </span>
             </div>
-            <div className="mt-4 pt-4 border-t border-border/50 text-xs text-muted-foreground flex justify-between">
+            <div className="mt-3 pt-3 border-t border-border text-xs text-muted-foreground flex justify-between">
               <span>{topSource.conversions} conversions</span>
               <span>{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(topSource.revenue)}</span>
             </div>

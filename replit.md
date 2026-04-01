@@ -92,7 +92,7 @@ All routes mounted at `/api`:
 - **HIPAA-aware**: All patient data uses de-identified IDs (NH-XXXXXX format), no PHI stored
 - **Period support**: 7d, 30d, 90d, 12m across most endpoints
 - **ROI calculation**: Assumes $1,500 value per converted patient booking
-- **Dark theme**: Mission-control aesthetic with cyan/teal accents
+- **Light theme**: Executive hospital dashboard with Northside Hospital branding (navy #003B71 sidebar, white backgrounds, blue #0073CF accents)
 - **5 AI Agents**: Simulated recursive learning agents with accuracy/confidence scores
 
 ## TypeScript & Composite Projects

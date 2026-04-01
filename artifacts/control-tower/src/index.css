@@ -66,83 +66,74 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-:root, .dark {
-  --button-outline: rgba(255,255,255, .10);
-  --badge-outline: rgba(255,255,255, .05);
+:root {
+  --button-outline: rgba(0, 59, 113, 0.12);
+  --badge-outline: rgba(0, 59, 113, 0.08);
 
   --opaque-button-border-intensity: 9;
 
-  --elevate-1: rgba(255,255,255, .04);
-  --elevate-2: rgba(255,255,255, .09);
+  --elevate-1: rgba(0, 59, 113, 0.04);
+  --elevate-2: rgba(0, 59, 113, 0.08);
 
-  /* Northside deep navy background */
-  --background: 209 100% 10%;
-  --foreground: 210 40% 98%;
+  --background: 210 20% 98%;
+  --foreground: 210 50% 12%;
 
-  /* Slightly lighter navy for cards */
-  --card: 209 100% 13%;
-  --card-foreground: 210 40% 98%;
-  --card-border: 209 60% 20%;
+  --card: 0 0% 100%;
+  --card-foreground: 210 50% 12%;
+  --card-border: 210 20% 90%;
 
-  --popover: 209 100% 13%;
-  --popover-foreground: 210 40% 98%;
-  --popover-border: 209 60% 20%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 210 50% 12%;
+  --popover-border: 210 20% 90%;
 
-  --border: 209 60% 20%;
+  --border: 210 20% 90%;
 
-  /* Sidebar - darkest navy */
-  --sidebar: 209 100% 8%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-border: 209 60% 20%;
-  --sidebar-primary: 207 96% 42%;
+  --sidebar: 210 60% 16%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-border: 210 50% 22%;
+  --sidebar-primary: 207 100% 41%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 209 60% 20%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-ring: 207 96% 42%;
+  --sidebar-accent: 210 50% 22%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 207 100% 41%;
 
-  /* Northside bright blue CTA */
-  --primary: 207 96% 42%;
+  --primary: 210 100% 22%;
   --primary-foreground: 0 0% 100%;
 
-  /* Deep navy secondary */
-  --secondary: 209 100% 17%;
-  --secondary-foreground: 210 40% 98%;
+  --secondary: 210 20% 95%;
+  --secondary-foreground: 210 50% 20%;
 
-  /* Muted navy tones */
-  --muted: 209 60% 20%;
-  --muted-foreground: 209 30% 60%;
+  --muted: 210 20% 95%;
+  --muted-foreground: 210 15% 50%;
 
-  /* Accent - lighter Northside blue */
-  --accent: 207 80% 55%;
+  --accent: 207 100% 41%;
   --accent-foreground: 0 0% 100%;
 
-  /* Alert red */
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
 
-  --input: 209 60% 20%;
-  --ring: 207 96% 42%;
+  --input: 210 20% 90%;
+  --ring: 210 100% 22%;
 
-  /* Chart Colors - Northside blue cohesive palette */
-  --chart-1: 207 96% 42%;
-  --chart-2: 207 80% 55%;
-  --chart-3: 209 100% 17%;
-  --chart-4: 207 60% 70%;
-  --chart-5: 195 80% 40%;
+  --chart-1: 210 100% 22%;
+  --chart-2: 207 100% 41%;
+  --chart-3: 207 70% 58%;
+  --chart-4: 195 60% 45%;
+  --chart-5: 160 60% 42%;
 
   --app-font-sans: 'Open Sans', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: 'Fira Code', 'Menlo', monospace;
-  --radius: 0px;
+  --radius: 6px;
 
-  --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.5);
-  --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.5);
-  --shadow-sm: 0px 2px 0px 0px hsl(0 0% 0% / 0.5), 0px 1px 2px -1px hsl(0 0% 0% / 0.5);
-  --shadow: 0px 2px 0px 0px hsl(0 0% 0% / 0.5), 0px 1px 2px -1px hsl(0 0% 0% / 0.5);
-  --shadow-md: 0px 2px 0px 0px hsl(0 0% 0% / 0.5), 0px 2px 4px -1px hsl(0 0% 0% / 0.5);
-  --shadow-lg: 0px 2px 0px 0px hsl(0 0% 0% / 0.5), 0px 4px 6px -1px hsl(0 0% 0% / 0.5);
-  --shadow-xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.5), 0px 8px 10px -1px hsl(0 0% 0% / 0.5);
-  --shadow-2xl: 0px 2px 0px 0px hsl(0 0% 0% / 0.5);
+  --shadow-2xs: 0px 1px 2px 0px hsl(210 20% 50% / 0.06);
+  --shadow-xs: 0px 1px 3px 0px hsl(210 20% 50% / 0.08);
+  --shadow-sm: 0px 1px 3px 0px hsl(210 20% 50% / 0.1), 0px 1px 2px -1px hsl(210 20% 50% / 0.06);
+  --shadow: 0px 2px 4px 0px hsl(210 20% 50% / 0.1), 0px 1px 3px -1px hsl(210 20% 50% / 0.06);
+  --shadow-md: 0px 4px 6px -1px hsl(210 20% 50% / 0.1), 0px 2px 4px -2px hsl(210 20% 50% / 0.06);
+  --shadow-lg: 0px 10px 15px -3px hsl(210 20% 50% / 0.1), 0px 4px 6px -4px hsl(210 20% 50% / 0.06);
+  --shadow-xl: 0px 20px 25px -5px hsl(210 20% 50% / 0.1), 0px 8px 10px -6px hsl(210 20% 50% / 0.06);
+  --shadow-2xl: 0px 25px 50px -12px hsl(210 20% 50% / 0.25);
 
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
