@@ -13,6 +13,17 @@ import {
 async function seed() {
   console.log("Seeding Northside Hospital Control Tower data...");
 
+  console.log("Clearing existing data...");
+  await db.delete(agentActivities);
+  await db.delete(alerts);
+  await db.delete(agents);
+  await db.delete(contentAssets);
+  await db.delete(patientLeads);
+  await db.delete(campaigns);
+  await db.delete(leadSources);
+  await db.delete(serviceLines);
+  console.log("Existing data cleared.");
+
   const slData = [
     { name: "Cardiology", slug: "cardiology", description: "Heart and cardiovascular care including interventional cardiology, electrophysiology, and cardiac surgery" },
     { name: "Orthopedics", slug: "orthopedics", description: "Bone, joint, and musculoskeletal care including sports medicine and joint replacement" },
@@ -113,7 +124,7 @@ async function seed() {
 
   console.log("Generating patient leads (this may take a moment)...");
   const batchSize = 1000;
-  const totalLeads = 15000;
+  const totalLeads = 50000;
   let leadsInserted = 0;
 
   for (let batch = 0; batch < Math.ceil(totalLeads / batchSize); batch++) {
@@ -121,7 +132,7 @@ async function seed() {
     const currentBatchSize = Math.min(batchSize, totalLeads - leadsInserted);
 
     for (let i = 0; i < currentBatchSize; i++) {
-      const daysAgo = Math.floor(Math.random() * 365);
+      const daysAgo = Math.floor(Math.random() * 450);
       const createdAt = new Date();
       createdAt.setDate(createdAt.getDate() - daysAgo);
       createdAt.setHours(Math.floor(Math.random() * 24), Math.floor(Math.random() * 60));

@@ -1,3 +1,4 @@
+import type { ElementType } from "react";
 import { useGetAttribution, useListLeadSources } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -113,7 +114,7 @@ export default function AttributionPage() {
   );
 }
 
-function ModelCard({ title, description, icon: Icon, data, loading, highlight = false }: any) {
+function ModelCard({ title, description, icon: Icon, data, loading, highlight = false }: { title: string; description: string; icon: ElementType; data?: Array<{ sourceName: string; percentage: number; conversions: number; revenue: number }>; loading: boolean; highlight?: boolean }) {
   const topSource = data?.[0];
 
   return (

@@ -78,7 +78,7 @@ export default function CampaignsPage() {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Search campaigns..." className="pl-9 w-[250px] bg-background/50 border-border" />
               </div>
-              <Select value={statusFilter} onValueChange={(val: any) => setStatusFilter(val)}>
+              <Select value={statusFilter} onValueChange={(val: string) => setStatusFilter(val as "all" | "active" | "paused" | "completed")}>
                 <SelectTrigger className="w-[140px] bg-background/50 border-border">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>

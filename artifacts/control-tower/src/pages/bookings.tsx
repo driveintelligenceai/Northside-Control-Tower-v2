@@ -32,7 +32,7 @@ export default function BookingsPage() {
           </h2>
           <p className="text-muted-foreground">End-to-end visibility of the lead-to-patient pipeline.</p>
         </div>
-        <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
+        <Select value={period} onValueChange={(v: string) => setPeriod(v as "7d" | "30d" | "90d")}>
           <SelectTrigger className="w-[180px] bg-card border-border">
             <SelectValue placeholder="Select Period" />
           </SelectTrigger>

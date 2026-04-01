@@ -1,3 +1,4 @@
+import type { ElementType } from "react";
 import { 
   useGetDashboardSummary, 
   useGetDashboardTrends, 
@@ -199,7 +200,7 @@ function MetricCard({
   title: string; 
   value: string | number; 
   trend?: number; 
-  icon: any; 
+  icon: ElementType; 
   loading?: boolean;
   inverseTrend?: boolean;
 }) {

@@ -102,7 +102,7 @@ export default function AlertsPage() {
   );
 }
 
-function SummaryCard({ title, count, type, onClick, active }: any) {
+function SummaryCard({ title, count, type, onClick, active }: { title: string; count: number; type: string; onClick: () => void; active: boolean }) {
   let colors = "";
   if (type === "critical") colors = active ? "border-destructive ring-1 ring-destructive/50 bg-destructive/10" : "border-card-border hover:border-destructive/50";
   else if (type === "warning") colors = active ? "border-yellow-500 ring-1 ring-yellow-500/50 bg-yellow-500/10" : "border-card-border hover:border-yellow-500/50";
