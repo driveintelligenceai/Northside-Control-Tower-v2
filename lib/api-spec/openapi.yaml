@@ -189,6 +189,23 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Campaign"
+    post:
+      operationId: createCampaign
+      tags: [campaigns]
+      summary: Create a new campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCampaignInput"
+      responses:
+        "201":
+          description: Campaign created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
 
   /campaigns/{id}:
     get:
@@ -208,6 +225,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Campaign"
+    patch:
+      operationId: updateCampaign
+      tags: [campaigns]
+      summary: Update a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCampaignInput"
+      responses:
+        "200":
+          description: Campaign updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+    delete:
+      operationId: deleteCampaign
+      tags: [campaigns]
+      summary: Delete a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Campaign deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
 
   /campaigns/top-performing:
     get:
@@ -1021,3 +1078,55 @@ components:
         - warning
         - info
         - unacknowledged
+
+    CreateCampaignInput:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+          default: "active"
+        serviceLineId:
+          type: integer
+        startDate:
+          type: string
+        endDate:
+          type: string
+        budget:
+          type: number
+      required:
+        - name
+        - type
+        - startDate
+        - budget
+
+    UpdateCampaignInput:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        serviceLineId:
+          type: integer
+        startDate:
+          type: string
+        endDate:
+          type: string
+        budget:
+          type: number
+        spent:
+          type: number
+
+    DeleteResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success

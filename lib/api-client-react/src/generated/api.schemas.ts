@@ -223,6 +223,31 @@ export interface AlertsSummary {
   unacknowledged: number;
 }
 
+export interface CreateCampaignInput {
+  name: string;
+  type: string;
+  status?: string;
+  serviceLineId?: number;
+  startDate: string;
+  endDate?: string;
+  budget: number;
+}
+
+export interface UpdateCampaignInput {
+  name?: string;
+  type?: string;
+  status?: string;
+  serviceLineId?: number;
+  startDate?: string;
+  endDate?: string;
+  budget?: number;
+  spent?: number;
+}
+
+export interface DeleteResult {
+  success: boolean;
+}
+
 export type GetDashboardSummaryParams = {
   period?: GetDashboardSummaryPeriod;
 };

@@ -51,15 +51,17 @@ artifacts-monorepo/
 7. **Alerts** (`/alerts`) — Anomalies & alerts feed with severity filtering (critical/warning/info)
 8. **Departments** (`/departments`) — Cross-department analysis by service line
 
-## Database Schema (7 tables)
+## Database Schema (9 tables)
 
 - `service_lines` — 10 Northside Hospital clinical departments
 - `lead_sources` — 15 marketing channels (Google Ads, Facebook, Physician Referrals, etc.)
 - `campaigns` — 25 active marketing campaigns with budgets and performance
-- `patient_leads` — 15,000 de-identified patient leads with funnel stages (patientId format: NH-XXXXXX)
+- `patient_leads` — 50,000 de-identified patient leads with funnel stages (patientId format: NH-XXXXXX)
 - `content_assets` — 25 marketing content pieces with engagement metrics
 - `agents` / `agent_activities` — 5 AI agents (Data Quality, Attribution, Anomaly Detection, Optimization, Compliance) with 100 activity logs
 - `alerts` — 15 system alerts/anomalies
+- `attribution_touchpoints` — 25,000 multi-touch attribution entries (FK to patient_leads, lead_sources, campaigns)
+- `audit_trail` — 200 audit entries tracking data access/mutations (HIPAA compliance)
 
 ## API Routes
 
@@ -68,6 +70,9 @@ All routes mounted at `/api`:
 - `GET /api/dashboard/trends` — Time-series data for charts
 - `GET /api/attribution` — Multi-model attribution analysis
 - `GET /api/campaigns` — Campaign listing with search/filter/pagination
+- `POST /api/campaigns` — Create a new campaign (with audit trail)
+- `PATCH /api/campaigns/:id` — Update a campaign (with audit trail)
+- `DELETE /api/campaigns/:id` — Delete a campaign (with audit trail)
 - `GET /api/campaigns/top` — Top performing campaigns
 - `GET /api/bookings/funnel` — Conversion pipeline stages
 - `GET /api/bookings/by-service-line` — Bookings breakdown by department
@@ -158,4 +163,4 @@ Generated React Query hooks and fetch client from the OpenAPI spec.
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
 
-- `seed` — Populates database with realistic Northside Hospital data (10 service lines, 15 lead sources, 25 campaigns, 15,000 patient leads, 25 content assets, 5 AI agents, 100 agent activities, 15 alerts)
+- `seed` — Populates database with realistic Northside Hospital data (10 service lines, 15 lead sources, 25 campaigns, 50,000 patient leads, 25 content assets, 5 AI agents, 100 agent activities, 15 alerts, 25,000 attribution touchpoints, 200 audit trail entries)

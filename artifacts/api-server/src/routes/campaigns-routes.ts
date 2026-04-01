@@ -9,6 +9,8 @@ import {
   GetCampaignResponse,
   GetTopCampaignsQueryParams,
   GetTopCampaignsResponse,
+  CreateCampaignBody,
+  UpdateCampaignBody,
 } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -18,6 +20,46 @@ function getStartDate(period: string): Date {
   const days = period === "7d" ? 7 : period === "90d" ? 90 : period === "12m" ? 365 : 30;
   d.setDate(d.getDate() - days);
   return d;
+}
+
+function normalizeCampaignRow(row: {
+  id: number;
+  name: string;
+  type: string;
+  status: string;
+  serviceLineId?: number | null;
+  serviceLineName?: string | null;
+  startDate: string | null;
+  endDate?: string | null;
+  budget: string | number;
+  spent: string | number | null;
+  impressions: number | null;
+  clicks: number | null;
+  conversions: number | null;
+}) {
+  const spent = Number(row.spent ?? 0);
+  const clicks = row.clicks ?? 0;
+  const impressions = row.impressions ?? 0;
+  const conversions = row.conversions ?? 0;
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    status: row.status,
+    serviceLineId: row.serviceLineId ?? undefined,
+    serviceLineName: row.serviceLineName ?? undefined,
+    startDate: row.startDate ?? undefined,
+    endDate: row.endDate ?? undefined,
+    budget: Number(row.budget),
+    spent,
+    impressions,
+    clicks,
+    conversions,
+    ctr: impressions > 0 ? Math.round((clicks / impressions) * 10000) / 100 : 0,
+    cpc: clicks > 0 ? Math.round((spent / clicks) * 100) / 100 : 0,
+    cpa: conversions > 0 ? Math.round((spent / conversions) * 100) / 100 : 0,
+    roi: spent > 0 ? Math.round(((conversions * 1500 - spent) / spent) * 10000) / 100 : 0,
+  };
 }
 
 router.get("/campaigns", async (req, res) => {
@@ -52,31 +94,7 @@ router.get("/campaigns", async (req, res) => {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(campaigns.createdAt));
 
-  const result = rows.map((row) => {
-    const spent = Number(row.spent ?? 0);
-    const clicks = row.clicks ?? 0;
-    const impressions = row.impressions ?? 0;
-    const conversions = row.conversions ?? 0;
-    return {
-      id: row.id,
-      name: row.name,
-      type: row.type,
-      status: row.status,
-      serviceLineId: row.serviceLineId ?? undefined,
-      serviceLineName: row.serviceLineName ?? undefined,
-      startDate: row.startDate,
-      endDate: row.endDate ?? undefined,
-      budget: Number(row.budget),
-      spent,
-      impressions,
-      clicks,
-      conversions,
-      ctr: impressions > 0 ? Math.round((clicks / impressions) * 10000) / 100 : 0,
-      cpc: clicks > 0 ? Math.round((spent / clicks) * 100) / 100 : 0,
-      cpa: conversions > 0 ? Math.round((spent / conversions) * 100) / 100 : 0,
-      roi: spent > 0 ? Math.round(((conversions * 1500 - spent) / spent) * 10000) / 100 : 0,
-    };
-  });
+  const result = rows.map(normalizeCampaignRow);
 
   const data = ListCampaignsResponse.parse(result);
   res.json(data);
@@ -147,61 +165,17 @@ router.get("/campaigns/:id", async (req, res) => {
     return;
   }
 
-  const row = rows[0];
-  const spent = Number(row.spent ?? 0);
-  const clicks = row.clicks ?? 0;
-  const impressions = row.impressions ?? 0;
-  const conversions = row.conversions ?? 0;
-
-  const data = GetCampaignResponse.parse({
-    id: row.id,
-    name: row.name,
-    type: row.type,
-    status: row.status,
-    serviceLineId: row.serviceLineId ?? undefined,
-    serviceLineName: row.serviceLineName ?? undefined,
-    startDate: row.startDate,
-    endDate: row.endDate ?? undefined,
-    budget: Number(row.budget),
-    spent,
-    impressions,
-    clicks,
-    conversions,
-    ctr: impressions > 0 ? Math.round((clicks / impressions) * 10000) / 100 : 0,
-    cpc: clicks > 0 ? Math.round((spent / clicks) * 100) / 100 : 0,
-    cpa: conversions > 0 ? Math.round((spent / conversions) * 100) / 100 : 0,
-    roi: spent > 0 ? Math.round(((conversions * 1500 - spent) / spent) * 10000) / 100 : 0,
-  });
+  const data = GetCampaignResponse.parse(normalizeCampaignRow(rows[0]));
   res.json(data);
 });
 
-interface CreateCampaignBody {
-  name: string;
-  type: string;
-  status?: string;
-  serviceLineId?: number;
-  startDate: string;
-  endDate?: string;
-  budget: number;
-}
-
-interface UpdateCampaignBody {
-  name?: string;
-  type?: string;
-  status?: string;
-  serviceLineId?: number;
-  startDate?: string;
-  endDate?: string;
-  budget?: number;
-  spent?: number;
-}
-
 router.post("/campaigns", async (req, res) => {
-  const body = req.body as CreateCampaignBody;
-  if (!body.name || !body.type || !body.startDate || body.budget === undefined) {
-    res.status(400).json({ error: "Missing required fields: name, type, startDate, budget" });
+  const parsed = CreateCampaignBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
     return;
   }
+  const body = parsed.data;
 
   const [created] = await db
     .insert(campaigns)
@@ -223,12 +197,17 @@ router.post("/campaigns", async (req, res) => {
     details: { name: body.name, type: body.type, budget: body.budget },
   });
 
-  res.status(201).json(created);
+  res.status(201).json(normalizeCampaignRow(created));
 });
 
 router.patch("/campaigns/:id", async (req, res) => {
   const { id } = GetCampaignParams.parse(req.params);
-  const body = req.body as UpdateCampaignBody;
+  const parsed = UpdateCampaignBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid input", details: parsed.error.issues });
+    return;
+  }
+  const body = parsed.data;
 
   const updates: Record<string, unknown> = {};
   if (body.name !== undefined) updates.name = body.name;
@@ -263,7 +242,7 @@ router.patch("/campaigns/:id", async (req, res) => {
     details: updates,
   });
 
-  res.json(updated);
+  res.json(normalizeCampaignRow(updated));
 });
 
 router.delete("/campaigns/:id", async (req, res) => {

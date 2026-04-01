@@ -212,6 +212,21 @@ export const ListCampaignsResponseItem = zod.object({
 export const ListCampaignsResponse = zod.array(ListCampaignsResponseItem);
 
 /**
+ * @summary Create a new campaign
+ */
+export const createCampaignBodyStatusDefault = `active`;
+
+export const CreateCampaignBody = zod.object({
+  name: zod.string(),
+  type: zod.string(),
+  status: zod.string().default(createCampaignBodyStatusDefault),
+  serviceLineId: zod.number().optional(),
+  startDate: zod.string(),
+  endDate: zod.string().optional(),
+  budget: zod.number(),
+});
+
+/**
  * @summary Get campaign details
  */
 export const GetCampaignParams = zod.object({
@@ -236,6 +251,55 @@ export const GetCampaignResponse = zod.object({
   cpc: zod.number().optional(),
   cpa: zod.number().optional(),
   roi: zod.number().optional(),
+});
+
+/**
+ * @summary Update a campaign
+ */
+export const UpdateCampaignParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateCampaignBody = zod.object({
+  name: zod.string().optional(),
+  type: zod.string().optional(),
+  status: zod.string().optional(),
+  serviceLineId: zod.number().optional(),
+  startDate: zod.string().optional(),
+  endDate: zod.string().optional(),
+  budget: zod.number().optional(),
+  spent: zod.number().optional(),
+});
+
+export const UpdateCampaignResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  type: zod.string(),
+  status: zod.string(),
+  serviceLineId: zod.number().optional(),
+  serviceLineName: zod.string().optional(),
+  startDate: zod.string().optional(),
+  endDate: zod.string().optional(),
+  budget: zod.number(),
+  spent: zod.number(),
+  impressions: zod.number(),
+  clicks: zod.number(),
+  conversions: zod.number(),
+  ctr: zod.number().optional(),
+  cpc: zod.number().optional(),
+  cpa: zod.number().optional(),
+  roi: zod.number().optional(),
+});
+
+/**
+ * @summary Delete a campaign
+ */
+export const DeleteCampaignParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteCampaignResponse = zod.object({
+  success: zod.boolean(),
 });
 
 /**

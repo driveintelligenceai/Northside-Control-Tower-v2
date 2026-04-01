@@ -1,17 +1,71 @@
 import { useState } from "react";
-import { useListCampaigns, useGetTopCampaigns } from "@workspace/api-client-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useListCampaigns,
+  useGetTopCampaigns,
+  useCreateCampaign,
+  useUpdateCampaign,
+  useDeleteCampaign,
+  getListCampaignsQueryKey,
+  getGetTopCampaignsQueryKey,
+} from "@workspace/api-client-react";
+import type { CreateCampaignInput } from "@workspace/api-client-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Megaphone, Search, Play, Pause, ExternalLink, TrendingUp } from "lucide-react";
+import { Megaphone, Search, Play, Pause, Trash2, TrendingUp, Plus, X } from "lucide-react";
 
 export default function CampaignsPage() {
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "completed">("all");
-  
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newCampaign, setNewCampaign] = useState<CreateCampaignInput>({
+    name: "",
+    type: "paid_search",
+    startDate: new Date().toISOString().split("T")[0],
+    budget: 0,
+  });
+
   const { data: campaigns, isLoading } = useListCampaigns({ status: statusFilter });
   const { data: topCampaigns, isLoading: loadingTop } = useGetTopCampaigns({ period: "30d", limit: 3 });
+
+  const invalidateCampaigns = () => {
+    queryClient.invalidateQueries({ queryKey: getListCampaignsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetTopCampaignsQueryKey() });
+  };
+
+  const createMutation = useCreateCampaign({
+    mutation: { onSuccess: () => { invalidateCampaigns(); setShowCreateForm(false); resetForm(); } },
+  });
+
+  const updateMutation = useUpdateCampaign({
+    mutation: { onSuccess: () => invalidateCampaigns() },
+  });
+
+  const deleteMutation = useDeleteCampaign({
+    mutation: { onSuccess: () => invalidateCampaigns() },
+  });
+
+  const resetForm = () => {
+    setNewCampaign({ name: "", type: "paid_search", startDate: new Date().toISOString().split("T")[0], budget: 0 });
+  };
+
+  const handleCreate = () => {
+    if (!newCampaign.name || !newCampaign.type || !newCampaign.startDate || newCampaign.budget <= 0) return;
+    createMutation.mutate({ data: newCampaign });
+  };
+
+  const handleToggleStatus = (id: number, currentStatus: string) => {
+    const newStatus = currentStatus === "active" ? "paused" : "active";
+    updateMutation.mutate({ id, data: { status: newStatus } });
+  };
+
+  const handleDelete = (id: number, name: string) => {
+    if (!confirm(`Delete campaign "${name}"? This action cannot be undone.`)) return;
+    deleteMutation.mutate({ id });
+  };
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
   const formatNumber = (val: number) => new Intl.NumberFormat('en-US', { notation: "compact" }).format(val);
@@ -27,16 +81,80 @@ export default function CampaignsPage() {
           <p className="text-muted-foreground">Manage and monitor active marketing initiatives.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="border-primary/20 text-primary hover:bg-primary/10">
-            Export Report
-          </Button>
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-            New Campaign
+          <Button
+            onClick={() => { setShowCreateForm(!showCreateForm); if (showCreateForm) resetForm(); }}
+            className={showCreateForm ? "bg-destructive text-destructive-foreground" : ""}
+          >
+            {showCreateForm ? <><X className="h-4 w-4 mr-1" /> Cancel</> : <><Plus className="h-4 w-4 mr-1" /> New Campaign</>}
           </Button>
         </div>
       </div>
 
-      {/* Top Performers */}
+      {showCreateForm && (
+        <Card className="bg-card border-primary/30">
+          <CardHeader>
+            <CardTitle className="text-lg">Create New Campaign</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Campaign Name</label>
+                <Input
+                  placeholder="e.g. Spring Cardiology Push"
+                  value={newCampaign.name}
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, name: e.target.value }))}
+                  className="bg-background/50"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Type</label>
+                <Select value={newCampaign.type} onValueChange={(val: string) => setNewCampaign(prev => ({ ...prev, type: val }))}>
+                  <SelectTrigger className="bg-background/50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="paid_search">Paid Search</SelectItem>
+                    <SelectItem value="social_media">Social Media</SelectItem>
+                    <SelectItem value="content_marketing">Content Marketing</SelectItem>
+                    <SelectItem value="direct_mail">Direct Mail</SelectItem>
+                    <SelectItem value="community">Community</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Start Date</label>
+                <Input
+                  type="date"
+                  value={newCampaign.startDate}
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, startDate: e.target.value }))}
+                  className="bg-background/50"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Budget ($)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="10000"
+                  value={newCampaign.budget || ""}
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, budget: Number(e.target.value) }))}
+                  className="bg-background/50"
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button
+                onClick={handleCreate}
+                disabled={createMutation.isPending || !newCampaign.name || newCampaign.budget <= 0}
+              >
+                {createMutation.isPending ? "Creating..." : "Create Campaign"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div>
         <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-accent" />
@@ -66,7 +184,6 @@ export default function CampaignsPage() {
         </div>
       </div>
 
-      {/* Campaign List */}
       <Card className="bg-card border-card-border mt-8">
         <CardHeader className="border-b border-border/50 pb-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -115,7 +232,7 @@ export default function CampaignsPage() {
                       <div className="text-xs text-muted-foreground mt-0.5 capitalize">{campaign.type.replace('_', ' ')}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <Badge variant={campaign.status === 'active' ? 'default' : campaign.status === 'paused' ? 'secondary' : 'outline'} 
+                      <Badge variant={campaign.status === 'active' ? 'default' : campaign.status === 'paused' ? 'secondary' : 'outline'}
                              className={campaign.status === 'active' ? 'bg-primary/20 text-primary border-primary/30' : ''}>
                         {campaign.status}
                       </Badge>
@@ -125,9 +242,9 @@ export default function CampaignsPage() {
                       <div className="font-mono text-foreground">{formatCurrency(campaign.spent)}</div>
                       <div className="text-xs text-muted-foreground mt-0.5">of {formatCurrency(campaign.budget)}</div>
                       <div className="w-full bg-muted rounded-full h-1 mt-1.5">
-                        <div 
-                          className="bg-primary h-1 rounded-full" 
-                          style={{ width: `${Math.min(100, (campaign.spent / campaign.budget) * 100)}%` }} 
+                        <div
+                          className="bg-primary h-1 rounded-full"
+                          style={{ width: `${Math.min(100, (campaign.spent / campaign.budget) * 100)}%` }}
                         />
                       </div>
                     </td>
@@ -135,12 +252,26 @@ export default function CampaignsPage() {
                     <td className="px-6 py-4 text-right font-mono text-foreground font-medium">{campaign.conversions}</td>
                     <td className="px-6 py-4 text-right font-mono text-accent">{campaign.cpa ? formatCurrency(campaign.cpa) : '-'}</td>
                     <td className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary">
+                      <div className="flex items-center justify-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:text-primary"
+                          onClick={() => handleToggleStatus(campaign.id, campaign.status)}
+                          disabled={updateMutation.isPending}
+                          title={campaign.status === 'active' ? 'Pause campaign' : 'Activate campaign'}
+                        >
                           {campaign.status === 'active' ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-primary">
-                          <ExternalLink className="h-4 w-4" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:text-destructive"
+                          onClick={() => handleDelete(campaign.id, campaign.name)}
+                          disabled={deleteMutation.isPending}
+                          title="Delete campaign"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </td>
