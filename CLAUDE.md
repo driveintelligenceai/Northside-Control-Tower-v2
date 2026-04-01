@@ -188,9 +188,26 @@ Utility scripts package. Each script is a `.ts` file in `src/` with a correspond
 
 - `seed` — Populates database with realistic Northside Hospital data (10 service lines, 15 lead sources, 25 campaigns, 50,000 patient leads, 25 content assets, 5 AI agents, 100 agent activities, 15 alerts, 25,000 attribution touchpoints, 200 audit trail entries)
 
+## V1 / V2 Split
+
+| Instance | URL | Repo | Purpose |
+|---|---|---|---|
+| **V1 (stable)** | https://northside-control-tower.vercel.app | `driveintelligenceai/Northside-Control-Tower` | Production — never break this |
+| **V2 (enterprise)** | https://northside-control-tower-v2.vercel.app | `driveintelligenceai/Northside-Control-Tower-v2` | GAMEPLAN features: Oncology page, role-based views, trust badges, attribution switcher |
+
+**V2 local dir**: `~/Developer/src/github.com/driveintelligenceai/Northside-Control-Tower-v2`
+
+## Deploy Rules (MANDATORY)
+
+1. **Every commit must deploy to Vercel** — run `vercel deploy --prod` from the project dir after every push
+2. **V1 must always work** — never push breaking changes to V1 without testing first
+3. **V2 gets all new features** — if a feature works in V2, backport to V1 only after full E2E verification
+4. **Full visual E2E after each deploy** — check all routes return 200 and API returns valid JSON
+
 ## Vercel Deployment
 
-- **Production URL**: https://northside-control-tower.vercel.app
+- **V1 Production URL**: https://northside-control-tower.vercel.app
+- **V2 Production URL**: https://northside-control-tower-v2.vercel.app
 - **GitHub auto-deploy**: Push to `main` triggers production deploy
 - **vercel.json**: Configures build commands, output directory, API rewrites, serverless function settings
 
