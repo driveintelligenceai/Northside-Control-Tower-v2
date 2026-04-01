@@ -19,16 +19,21 @@ export default function DashboardPage() {
   const { data: trends, isLoading: loadingTrends } = useGetDashboardTrends({ period: "30d" });
   const { data: agents, isLoading: loadingAgents } = useListAgents();
   const { data: alerts, isLoading: loadingAlerts } = useListAlerts({ limit: 5 });
+  const safeAgents = Array.isArray(agents) ? agents : [];
+  const safeAlerts = Array.isArray(alerts) ? alerts : [];
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
   const formatNumber = (val: number) => new Intl.NumberFormat('en-US').format(val);
   const formatPercent = (val: number) => `${val.toFixed(1)}%`;
 
-  const chartData = trends?.dates.map((date, i) => ({
+  const trendDates = trends?.dates ?? [];
+  const trendLeads = trends?.leads ?? [];
+  const trendBookings = trends?.bookings ?? [];
+  const chartData = trendDates.map((date, i) => ({
     date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    leads: trends.leads[i],
-    bookings: trends.bookings[i]
-  })) || [];
+    leads: trendLeads[i] ?? 0,
+    bookings: trendBookings[i] ?? 0
+  }));
 
   return (
     <div className="space-y-6">
@@ -150,7 +155,7 @@ export default function DashboardPage() {
               <div className="divide-y divide-border">
                 {loadingAgents ? (
                   <div className="p-4 text-sm text-muted-foreground text-center">Loading agents...</div>
-                ) : agents?.slice(0, 3).map(agent => (
+                ) : safeAgents.slice(0, 3).map(agent => (
                   <div key={agent.id} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
                     <div>
                       <div className="font-medium text-sm text-foreground flex items-center gap-2">
@@ -185,9 +190,9 @@ export default function DashboardPage() {
               <div className="divide-y divide-border">
                 {loadingAlerts ? (
                   <div className="p-4 text-sm text-muted-foreground text-center">Scanning alerts...</div>
-                ) : alerts?.length === 0 ? (
+                ) : safeAlerts.length === 0 ? (
                   <div className="p-6 text-sm text-muted-foreground text-center">No active alerts.</div>
-                ) : alerts?.map(alert => (
+                ) : safeAlerts.map(alert => (
                   <div key={alert.id} className="p-4 text-sm hover:bg-muted/50 transition-colors">
                     <div className="flex items-start justify-between gap-4">
                       <div className="font-medium text-foreground text-sm">{alert.title}</div>

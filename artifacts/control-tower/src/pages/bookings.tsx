@@ -13,6 +13,8 @@ export default function BookingsPage() {
   const { data: funnel, isLoading: loadingFunnel } = useGetBookingFunnel({ period });
   const { data: recent, isLoading: loadingRecent } = useGetRecentBookings({ limit: 8 });
   const { data: byService, isLoading: loadingService } = useGetBookingsByServiceLine({ period });
+  const safeRecent = Array.isArray(recent) ? recent : [];
+  const safeByService = Array.isArray(byService) ? byService : [];
 
   const formatPercent = (val?: number) => val ? `${val.toFixed(1)}%` : '0%';
 
@@ -100,7 +102,7 @@ export default function BookingsPage() {
             <div className="divide-y divide-border">
               {loadingRecent ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">Fetching feed...</div>
-              ) : recent?.map(booking => (
+              ) : safeRecent.map(booking => (
                 <div key={booking.id} className="p-4 hover:bg-muted/50 transition-colors">
                   <div className="flex justify-between items-start mb-2">
                     <Badge variant="outline" className={booking.isNewPatient ? "bg-blue-50 text-accent border-blue-200 text-xs" : "bg-muted text-muted-foreground text-xs"}>
@@ -134,7 +136,7 @@ export default function BookingsPage() {
                 <div className="h-full flex items-center justify-center text-muted-foreground animate-pulse">Loading service data...</div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={byService || []} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                  <BarChart data={safeByService} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
                     <XAxis type="number" stroke="#9CA3AF" fontSize={12} tickLine={false} axisLine={false} />
                     <YAxis dataKey="serviceLineName" type="category" stroke="#374151" fontSize={12} tickLine={false} axisLine={false} width={150} />
@@ -143,7 +145,7 @@ export default function BookingsPage() {
                       contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
                     />
                     <Bar dataKey="totalBookings" fill="#0073CF" radius={[0, 4, 4, 0]}>
-                      {byService?.map((_, index) => (
+                      {safeByService.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={SERVICE_COLORS[index % SERVICE_COLORS.length]} />
                       ))}
                     </Bar>

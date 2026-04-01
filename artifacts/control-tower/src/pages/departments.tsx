@@ -7,14 +7,15 @@ import { KpiTrustBadge } from "@/components/kpi-trust-badge";
 
 export default function DepartmentsPage() {
   const { role } = useRoleView();
-  const { data: lines, isLoading: loadingLines } = useListServiceLines();
+  useListServiceLines();
   const { data: performance, isLoading: loadingPerf } = useGetServiceLinePerformance({ period: "30d" });
+  const safePerformance = Array.isArray(performance) ? performance : [];
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
   const formatNumber = (val: number) => new Intl.NumberFormat('en-US').format(val);
   const formatPercent = (val: number) => `${val.toFixed(1)}%`;
-  const oncology = performance?.find((dept) => dept.serviceLineName.toLowerCase().includes("cancer"));
-  const cardio = performance?.find((dept) => dept.serviceLineName.toLowerCase().includes("cardio"));
+  const oncology = safePerformance.find((dept) => dept.serviceLineName.toLowerCase().includes("cancer"));
+  const cardio = safePerformance.find((dept) => dept.serviceLineName.toLowerCase().includes("cardio"));
   const oncologyNetNew = Math.round((oncology?.totalLeads ?? 0) * 0.62);
   const cardioNetNew = Math.round((cardio?.totalLeads ?? 0) * 0.41);
   const eligibilityRate = cardio?.conversionRate ? Math.min(98, Math.max(65, cardio.conversionRate * 2.7)) : 0;
@@ -61,7 +62,7 @@ export default function DepartmentsPage() {
               <div className="h-full flex items-center justify-center text-muted-foreground animate-pulse">Loading data...</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={performance || []} margin={{ top: 20, right: 30, left: 0, bottom: 25 }}>
+                <BarChart data={safePerformance} margin={{ top: 20, right: 30, left: 0, bottom: 25 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis 
                     dataKey="serviceLineName" 
@@ -90,7 +91,7 @@ export default function DepartmentsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {loadingPerf ? (
           <div className="col-span-2 text-center p-8 text-muted-foreground">Loading departments...</div>
-        ) : performance?.map(dept => (
+        ) : safePerformance.map(dept => (
           <Card key={dept.serviceLineId} className="bg-card border-card-border">
             <CardHeader className="border-b border-border/50 pb-4">
               <div className="flex justify-between items-start">

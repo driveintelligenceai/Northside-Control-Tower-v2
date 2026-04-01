@@ -8,9 +8,21 @@ import { cn } from "@/lib/utils";
 export default function AgentsPage() {
   const { data: agents, isLoading: loadingAgents } = useListAgents();
   const { data: health, isLoading: loadingHealth } = useGetAgentHealth();
+  const safeAgents = Array.isArray(agents) ? agents : [];
+  const healthData =
+    health && typeof health === "object"
+      ? health
+      : {
+          activeAgents: 0,
+          totalAgents: 0,
+          avgAccuracy: 0,
+          avgErrorRate: 0,
+          totalTasksToday: 0,
+        };
   
-  const activeAgentId = agents?.find(a => a.status === 'active')?.id || 1;
+  const activeAgentId = safeAgents.find(a => a.status === 'active')?.id || 1;
   const { data: activity, isLoading: loadingActivity } = useGetAgentActivity(activeAgentId, { limit: 10 });
+  const safeActivity = Array.isArray(activity) ? activity : [];
 
   return (
     <div className="space-y-6">
@@ -26,7 +38,7 @@ export default function AgentsPage() {
               <div className="text-muted-foreground text-sm">Fleet Status</div>
               <Cpu className="h-4 w-4 text-primary" />
             </div>
-            <div className="mt-2 text-2xl font-bold text-foreground">{health?.activeAgents || 0} / {health?.totalAgents || 0}</div>
+            <div className="mt-2 text-2xl font-bold text-foreground">{healthData.activeAgents} / {healthData.totalAgents}</div>
             <div className="mt-1 text-xs text-green-600 font-medium">Agents Online</div>
           </CardContent>
         </Card>
@@ -36,7 +48,7 @@ export default function AgentsPage() {
               <div className="text-muted-foreground text-sm">Avg Accuracy</div>
               <CheckCircle2 className="h-4 w-4 text-accent" />
             </div>
-            <div className="mt-2 text-2xl font-bold text-foreground">{health?.avgAccuracy.toFixed(1) || 0}%</div>
+            <div className="mt-2 text-2xl font-bold text-foreground">{healthData.avgAccuracy.toFixed(1)}%</div>
             <div className="mt-1 text-xs text-muted-foreground">Confidence Threshold</div>
           </CardContent>
         </Card>
@@ -46,7 +58,7 @@ export default function AgentsPage() {
               <div className="text-muted-foreground text-sm">Error Rate</div>
               <AlertCircle className="h-4 w-4 text-destructive" />
             </div>
-            <div className="mt-2 text-2xl font-bold text-destructive">{health?.avgErrorRate.toFixed(2) || 0}%</div>
+            <div className="mt-2 text-2xl font-bold text-destructive">{healthData.avgErrorRate.toFixed(2)}%</div>
             <div className="mt-1 text-xs text-muted-foreground">Requires intervention</div>
           </CardContent>
         </Card>
@@ -56,7 +68,7 @@ export default function AgentsPage() {
               <div className="text-muted-foreground text-sm">Tasks Today</div>
               <TerminalSquare className="h-4 w-4 text-accent" />
             </div>
-            <div className="mt-2 text-2xl font-bold text-foreground">{health?.totalTasksToday.toLocaleString() || 0}</div>
+            <div className="mt-2 text-2xl font-bold text-foreground">{healthData.totalTasksToday.toLocaleString()}</div>
             <div className="mt-1 text-xs text-muted-foreground">Autonomous actions</div>
           </CardContent>
         </Card>
@@ -67,7 +79,7 @@ export default function AgentsPage() {
           <h3 className="text-base font-semibold text-foreground">Agent Roster</h3>
           {loadingAgents ? (
             <div className="animate-pulse h-40 bg-muted rounded-md"></div>
-          ) : agents?.map(agent => (
+          ) : safeAgents.map(agent => (
             <Card key={agent.id} className="bg-white border-card-border shadow-sm overflow-hidden">
               <div className="flex flex-col md:flex-row border-b border-border">
                 <div className="p-5 md:w-1/3 border-r border-border bg-muted/30">
@@ -117,7 +129,7 @@ export default function AgentsPage() {
           <CardContent className="p-4 flex-1 overflow-auto text-xs space-y-2 bg-slate-50/50">
             {loadingActivity ? (
               <div className="text-muted-foreground">Establishing connection...</div>
-            ) : activity?.map(log => (
+            ) : safeActivity.map(log => (
               <div key={log.id} className="flex gap-3 items-start border-l-2 border-border pl-3 py-1">
                 <span className="text-muted-foreground shrink-0">
                   {new Date(log.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}

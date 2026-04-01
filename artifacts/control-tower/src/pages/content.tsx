@@ -7,6 +7,8 @@ import { FileText, Eye, MousePointerClick, TrendingUp, Filter } from "lucide-rea
 export default function ContentPage() {
   const { data: content, isLoading: loadingContent } = useListContent();
   const { data: topContent, isLoading: loadingTop } = useGetTopContent({ period: "30d", limit: 4 });
+  const safeContent = Array.isArray(content) ? content : [];
+  const safeTopContent = Array.isArray(topContent) ? topContent : [];
 
   const formatNumber = (val: number) => new Intl.NumberFormat('en-US').format(val);
   const formatPercent = (val: number) => `${val.toFixed(1)}%`;
@@ -25,7 +27,7 @@ export default function ContentPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {loadingTop ? (
           Array(4).fill(0).map((_, i) => <Card key={i} className="bg-card h-32 animate-pulse" />)
-        ) : topContent?.map((item, i) => (
+        ) : safeTopContent.map((item, i) => (
           <Card key={item.contentId} className="bg-card border-card-border hover:border-primary/50 transition-colors relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity">
               <span className="text-4xl font-bold text-muted-foreground">#{i+1}</span>
@@ -75,7 +77,7 @@ export default function ContentPage() {
             <TableBody>
               {loadingContent ? (
                 <TableRow><TableCell colSpan={8} className="text-center py-8">Loading assets...</TableCell></TableRow>
-              ) : content?.map(asset => (
+              ) : safeContent.map(asset => (
                 <TableRow key={asset.id} className="border-border/50 hover:bg-muted/30">
                   <TableCell className="font-medium max-w-[250px] truncate">{asset.title}</TableCell>
                   <TableCell className="capitalize text-muted-foreground">{asset.type.replace('_', ' ')}</TableCell>

@@ -30,6 +30,8 @@ export default function CampaignsPage() {
 
   const { data: campaigns, isLoading } = useListCampaigns({ status: statusFilter });
   const { data: topCampaigns, isLoading: loadingTop } = useGetTopCampaigns({ period: "30d", limit: 3 });
+  const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
+  const safeTopCampaigns = Array.isArray(topCampaigns) ? topCampaigns : [];
 
   const invalidateCampaigns = () => {
     queryClient.invalidateQueries({ queryKey: getListCampaignsQueryKey() });
@@ -163,7 +165,7 @@ export default function CampaignsPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {loadingTop ? (
             Array(3).fill(0).map((_, i) => <Card key={i} className="bg-card border-card-border h-32 animate-pulse" />)
-          ) : topCampaigns?.map(camp => (
+          ) : safeTopCampaigns.map(camp => (
             <Card key={camp.campaignId} className="bg-gradient-to-br from-card to-card/50 border-card-border relative overflow-hidden group">
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                 <Megaphone className="h-16 w-16 text-primary" />
@@ -225,7 +227,7 @@ export default function CampaignsPage() {
               <tbody className="divide-y divide-border/50">
                 {isLoading ? (
                   <tr><td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">Loading directory...</td></tr>
-                ) : campaigns?.map(campaign => (
+                ) : safeCampaigns.map(campaign => (
                   <tr key={campaign.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-6 py-4">
                       <div className="font-medium text-foreground">{campaign.name}</div>

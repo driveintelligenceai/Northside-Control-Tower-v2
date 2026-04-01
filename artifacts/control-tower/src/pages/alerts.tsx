@@ -11,6 +11,7 @@ export default function AlertsPage() {
   
   const { data: summary, isLoading: loadingSummary } = useGetAlertsSummary();
   const { data: alerts, isLoading: loadingAlerts } = useListAlerts({ severity: filter === "all" ? undefined : filter });
+  const safeAlerts = Array.isArray(alerts) ? alerts : [];
 
   const getSeverityIcon = (severity: string) => {
     switch(severity) {
@@ -56,12 +57,12 @@ export default function AlertsPage() {
           <div className="divide-y divide-border/50">
             {loadingAlerts ? (
               <div className="p-8 text-center text-muted-foreground">Loading alerts...</div>
-            ) : alerts?.length === 0 ? (
+            ) : safeAlerts.length === 0 ? (
               <div className="p-12 text-center flex flex-col items-center justify-center text-muted-foreground">
                 <CheckCircle2 className="h-12 w-12 text-green-500/50 mb-4" />
                 <p>No active alerts matching criteria.</p>
               </div>
-            ) : alerts?.map(alert => (
+            ) : safeAlerts.map(alert => (
               <div key={alert.id} className={cn("p-5 flex flex-col md:flex-row gap-4 transition-colors hover:bg-muted/20", alert.isAcknowledged ? "opacity-60" : "")}>
                 <div className="shrink-0 pt-1">
                   {getSeverityIcon(alert.severity)}

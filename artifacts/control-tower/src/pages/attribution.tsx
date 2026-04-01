@@ -13,13 +13,14 @@ export default function AttributionPage() {
   const [model, setModel] = useState<"first_touch" | "multi_touch" | "last_touch" | "time_decay" | "position_based">("multi_touch");
   const { data: attribution, isLoading: loadingAttr } = useGetAttribution({ period: "30d" });
   const { data: sources, isLoading: loadingSources } = useListLeadSources({ period: "30d" });
+  const safeSources = Array.isArray(sources) ? sources : [];
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
   const formatPercent = (val: number) => `${val.toFixed(1)}%`;
 
   const chartData = useMemo(
     () =>
-      sources?.slice(0, 5).map((source) => {
+      safeSources.slice(0, 5).map((source) => {
         const ft = attribution?.firstTouch.find((a) => a.sourceName === source.name)?.conversions || 0;
         const lt = attribution?.lastTouch.find((a) => a.sourceName === source.name)?.conversions || 0;
         const mt = attribution?.multiTouch.find((a) => a.sourceName === source.name)?.conversions || 0;
@@ -27,7 +28,7 @@ export default function AttributionPage() {
         const pb = Math.round(0.4 * ft + 0.2 * mt + 0.4 * lt);
         return { name: source.name, FirstTouch: ft, LastTouch: lt, MultiTouch: mt, TimeDecay: td, PositionBased: pb };
       }) || [],
-    [attribution, sources],
+    [attribution, safeSources],
   );
 
   const modelConfig = {
@@ -126,7 +127,7 @@ export default function AttributionPage() {
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8 text-muted-foreground animate-pulse">Loading sources...</TableCell>
                     </TableRow>
-                  ) : sources?.map(source => (
+                  ) : safeSources.map(source => (
                     <TableRow key={source.id} className="border-border hover:bg-muted/30 transition-colors">
                       <TableCell className="font-medium text-foreground">{source.name}</TableCell>
                       <TableCell className="text-muted-foreground capitalize">{source.category.replace('_', ' ')}</TableCell>
