@@ -24,6 +24,7 @@ if (!isLocal) {
 
 export const pool = new Pool({
   connectionString: databaseUrl,
+  max: 1,
 });
 export const db = drizzle(pool, { schema });
 
