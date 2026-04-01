@@ -31,6 +31,18 @@ const navItems = [
   { href: "/departments", label: "Departments", icon: Building2 },
 ];
 
+// Pages most relevant to each role — shown as priority shortcuts in the sidebar
+const ROLE_PRIORITY_PAGES: Record<string, string[]> = {
+  cmo:                   ["/", "/oncology", "/attribution"],
+  vp_marketing:          ["/attribution", "/campaigns", "/content"],
+  oncology_manager:      ["/oncology", "/departments", "/bookings"],
+  cardio_oncology_manager: ["/oncology", "/bookings", "/alerts"],
+  physician_liaison:     ["/oncology", "/attribution", "/departments"],
+  call_center_manager:   ["/bookings", "/alerts", "/"],
+  access_manager:        ["/bookings", "/departments", "/alerts"],
+  cfo_partner:           ["/", "/campaigns", "/attribution"],
+};
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { roleKey, setRoleKey } = useRoleView();
@@ -47,11 +59,40 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
         
         <div className="flex-1 py-4 px-3 overflow-y-auto">
-          <div className="px-3 mb-3 text-[11px] font-semibold text-sidebar-foreground/40 uppercase tracking-wider">
-            Marketing Analytics
+          {/* Role priority shortcuts */}
+          <div className="mb-3">
+            <div className="px-3 mb-1.5 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-wider flex items-center gap-1">
+              <span>{roleKey.replace(/_/g, " ")} priority</span>
+            </div>
+            {(ROLE_PRIORITY_PAGES[roleKey] ?? []).map((href) => {
+              const item = navItems.find(n => n.href === href);
+              if (!item) return null;
+              const isActive = location === href;
+              return (
+                <Link
+                  key={`priority-${href}`}
+                  href={href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 transition-colors text-xs rounded-md mb-0.5 font-medium",
+                    isActive
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground"
+                  )}
+                >
+                  <item.icon className="h-3.5 w-3.5" />
+                  {item.label}
+                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent opacity-70" />
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="px-3 mb-1.5 mt-3 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-wider">
+            All Pages
           </div>
           {navItems.map((item) => {
             const isActive = location === item.href;
+            const isPriority = (ROLE_PRIORITY_PAGES[roleKey] ?? []).includes(item.href);
             return (
               <Link 
                 key={item.href} 
@@ -69,6 +110,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <span className="flex-1">{item.label}</span>
                 {item.highlight && !isActive && (
                   <span className="text-[9px] font-bold bg-[#0E7490] text-white rounded px-1 py-0.5">V2</span>
+                )}
+                {isPriority && !isActive && !item.highlight && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
                 )}
               </Link>
             );

@@ -1,4 +1,5 @@
 import type { ElementType } from "react";
+import { useMemo } from "react";
 import { 
   useGetDashboardSummary, 
   useGetDashboardTrends, 
@@ -7,20 +8,27 @@ import {
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, ArrowDownRight, Users, Target, DollarSign, Zap, Brain, ShieldAlert } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Users, Target, DollarSign, Zap, Brain, ShieldAlert, TrendingUp, TrendingDown, Minus, Heart, Link as LinkIcon } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
+import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useRoleView } from "@/context/role-context";
 import { KpiTrustBadge } from "@/components/kpi-trust-badge";
+import { getNetNewSubtypes } from "@/lib/oncology-data";
 
 export default function DashboardPage() {
-  const { role } = useRoleView();
+  const { role, roleKey } = useRoleView();
   const { data: summary, isLoading: loadingSummary } = useGetDashboardSummary({ period: "30d" });
   const { data: trends, isLoading: loadingTrends } = useGetDashboardTrends({ period: "30d" });
   const { data: agents, isLoading: loadingAgents } = useListAgents();
   const { data: alerts, isLoading: loadingAlerts } = useListAlerts({ limit: 5 });
   const safeAgents = Array.isArray(agents) ? agents : [];
   const safeAlerts = Array.isArray(alerts) ? alerts : [];
+  const netNewSubtypes = useMemo(getNetNewSubtypes, []);
+
+  const showOncologyPanel = ["cmo", "oncology_manager", "cardio_oncology_manager", "physician_liaison"].includes(roleKey);
+  const criticalAlert = safeAlerts.find(a => a.severity === "critical");
+  const showAlertCallout = criticalAlert && ["cmo", "call_center_manager", "access_manager"].includes(roleKey);
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
   const formatNumber = (val: number) => new Intl.NumberFormat('en-US').format(val);
@@ -95,6 +103,62 @@ export default function DashboardPage() {
           loading={loadingSummary} 
         />
       </div>
+
+      {/* Role-specific alert callout */}
+      {showAlertCallout && (
+        <div className="flex items-start gap-3 p-4 rounded-lg border border-red-200 bg-red-50">
+          <ShieldAlert className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-red-800">{criticalAlert?.title}</div>
+            <div className="text-xs text-red-600 mt-0.5 line-clamp-1">{criticalAlert?.message}</div>
+          </div>
+          <Link href="/alerts">
+            <span className="text-xs text-red-700 font-medium whitespace-nowrap hover:underline cursor-pointer flex items-center gap-1">
+              View all <LinkIcon className="h-3 w-3" />
+            </span>
+          </Link>
+        </div>
+      )}
+
+      {/* Oncology net-new patient subtypes — shown for clinical/exec roles */}
+      {showOncologyPanel && (
+        <Card className="bg-white border-card-border shadow-sm border-l-4 border-l-[#0E7490]">
+          <CardHeader className="pb-3 border-b border-border">
+            <CardTitle className="text-sm font-semibold flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Heart className="h-4 w-4 text-[#0E7490]" />
+                Net-New Oncology Patients — MTD by Subtype
+              </div>
+              <Link href="/oncology">
+                <span className="text-xs text-accent font-medium hover:underline cursor-pointer flex items-center gap-1">
+                  Full pipeline <LinkIcon className="h-3 w-3" />
+                </span>
+              </Link>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {netNewSubtypes.map(s => {
+                const TrendIcon = s.trend > 0.03 ? TrendingUp : s.trend < -0.01 ? TrendingDown : Minus;
+                const trendColor = s.trend > 0.03 ? "text-green-600" : s.trend < -0.01 ? "text-red-500" : "text-muted-foreground";
+                return (
+                  <div key={s.key} className="rounded-md border border-border bg-muted/20 p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] text-muted-foreground">{s.label}</span>
+                      <KpiTrustBadge metricKey={`dashboard.netnew.${s.key}`} />
+                    </div>
+                    <div className="text-xl font-bold text-foreground">{s.value.toLocaleString()}</div>
+                    <div className={`flex items-center gap-1 text-[11px] font-medium mt-1 ${trendColor}`}>
+                      <TrendIcon className="h-3 w-3" />
+                      {s.trend > 0 ? "+" : ""}{(s.trend * 100).toFixed(1)}% vs prior
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <Card className="lg:col-span-2 bg-white border-card-border shadow-sm">
