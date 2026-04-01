@@ -213,7 +213,7 @@ function MetricCard({
       <CardContent className="p-6 relative z-10">
         <div className="flex justify-between items-start mb-4">
           <div className="text-muted-foreground text-sm font-medium">{title}</div>
-          <div className="p-2 bg-muted/50 rounded-md">
+          <div className="p-2 bg-muted/50">
             <Icon className="h-4 w-4 text-primary" />
           </div>
         </div>
@@ -228,7 +228,7 @@ function MetricCard({
         {!loading && trend !== undefined && (
           <div className="mt-4 flex items-center text-xs font-medium">
             <span className={cn(
-              "flex items-center gap-1 px-1.5 py-0.5 rounded-sm",
+              "flex items-center gap-1 px-1.5 py-0.5",
               isGood ? "text-green-400 bg-green-400/10" : "text-destructive bg-destructive/10"
             )}>
               {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}

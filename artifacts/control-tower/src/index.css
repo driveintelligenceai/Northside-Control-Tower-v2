@@ -75,65 +75,65 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  /* Deep space navy background */
-  --background: 223 47% 6%;
+  /* Northside deep navy background */
+  --background: 209 100% 10%;
   --foreground: 210 40% 98%;
 
-  /* Darker navy for cards */
-  --card: 222 47% 9%;
+  /* Slightly lighter navy for cards */
+  --card: 209 100% 13%;
   --card-foreground: 210 40% 98%;
-  --card-border: 215 28% 14%;
+  --card-border: 209 60% 20%;
 
-  --popover: 222 47% 9%;
+  --popover: 209 100% 13%;
   --popover-foreground: 210 40% 98%;
-  --popover-border: 215 28% 14%;
+  --popover-border: 209 60% 20%;
 
-  --border: 215 28% 14%;
+  --border: 209 60% 20%;
 
-  /* Sidebar styling */
-  --sidebar: 224 50% 5%;
+  /* Sidebar - darkest navy */
+  --sidebar: 209 100% 8%;
   --sidebar-foreground: 210 40% 98%;
-  --sidebar-border: 215 28% 14%;
-  --sidebar-primary: 191 97% 36%;
+  --sidebar-border: 209 60% 20%;
+  --sidebar-primary: 207 96% 42%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 215 28% 14%;
+  --sidebar-accent: 209 60% 20%;
   --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-ring: 191 97% 36%;
+  --sidebar-ring: 207 96% 42%;
 
-  /* Cyan glow */
-  --primary: 191 97% 40%;
-  --primary-foreground: 0 0% 0%;
+  /* Northside bright blue CTA */
+  --primary: 207 96% 42%;
+  --primary-foreground: 0 0% 100%;
 
-  /* Deep muted blue */
-  --secondary: 224 64% 20%;
+  /* Deep navy secondary */
+  --secondary: 209 100% 17%;
   --secondary-foreground: 210 40% 98%;
 
-  /* Subtle muted backgrounds */
-  --muted: 215 28% 14%;
-  --muted-foreground: 215 20% 65%;
+  /* Muted navy tones */
+  --muted: 209 60% 20%;
+  --muted-foreground: 209 30% 60%;
 
-  /* Vibrant Accent - Neon Purple/Pink */
-  --accent: 270 71% 60%;
+  /* Accent - lighter Northside blue */
+  --accent: 207 80% 55%;
   --accent-foreground: 0 0% 100%;
 
-  /* Neon Red */
-  --destructive: 348 83% 55%;
+  /* Alert red */
+  --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
 
-  --input: 215 28% 14%;
-  --ring: 191 97% 40%;
+  --input: 209 60% 20%;
+  --ring: 207 96% 42%;
 
-  /* Chart Colors - Neon / Data Vibe */
-  --chart-1: 191 97% 45%; /* Cyan */
-  --chart-2: 270 71% 65%; /* Purple */
-  --chart-3: 150 80% 50%; /* Green */
-  --chart-4: 35 100% 55%; /* Orange */
-  --chart-5: 348 83% 60%; /* Red */
+  /* Chart Colors - Northside blue cohesive palette */
+  --chart-1: 207 96% 42%;
+  --chart-2: 207 80% 55%;
+  --chart-3: 209 100% 17%;
+  --chart-4: 207 60% 70%;
+  --chart-5: 195 80% 40%;
 
-  --app-font-sans: 'Inter', sans-serif;
+  --app-font-sans: 'Open Sans', sans-serif;
   --app-font-serif: Georgia, serif;
-  --app-font-mono: 'JetBrains Mono', 'Menlo', monospace;
-  --radius: 0.375rem; 
+  --app-font-mono: 'Fira Code', 'Menlo', monospace;
+  --radius: 0px;
 
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.5);
   --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.5);

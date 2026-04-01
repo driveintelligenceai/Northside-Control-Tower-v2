@@ -56,7 +56,7 @@ export default function BookingsPage() {
               {funnelSteps.map((step, idx) => (
                 <div key={step.name} className="flex-1 w-full flex flex-col items-center">
                   <div 
-                    className="w-full max-w-[200px] flex flex-col items-center justify-center rounded-lg p-6 relative overflow-hidden border border-border/50"
+                    className="w-full max-w-[200px] flex flex-col items-center justify-center p-6 relative overflow-hidden border border-border/50"
                     style={{ backgroundColor: `${step.color}15` }} // 15 is hex for ~8% opacity
                   >
                     <div className="absolute inset-x-0 bottom-0 h-1" style={{ backgroundColor: step.color }} />
@@ -65,7 +65,7 @@ export default function BookingsPage() {
                   </div>
                   {idx < funnelSteps.length - 1 && (
                     <div className="hidden md:flex flex-col items-center my-4 md:my-0 md:absolute right-[-10%] z-10 transform translate-x-[50%]">
-                      <div className="bg-background border border-border rounded-full px-2 py-1 text-xs font-mono text-primary font-bold shadow-sm">
+                      <div className="bg-background border border-border px-2 py-1 text-xs font-mono text-primary font-bold shadow-sm">
                         {idx === 0 ? formatPercent(funnel?.leadsToScheduledRate) : 
                          idx === 1 ? formatPercent(funnel?.scheduledToCompletedRate) : 
                          formatPercent(funnel?.completedToFollowUpRate)}

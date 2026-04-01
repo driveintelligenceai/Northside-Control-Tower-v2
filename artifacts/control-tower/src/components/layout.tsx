@@ -1,6 +1,5 @@
 import { Link, useLocation } from "wouter";
 import { 
-  Activity, 
   BarChart3, 
   LayoutDashboard, 
   Megaphone, 
@@ -10,7 +9,8 @@ import {
   AlertTriangle, 
   Building2,
   Settings,
-  Bell
+  Bell,
+  Activity
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,9 +33,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="w-64 border-r border-border bg-sidebar flex flex-col hidden md:flex shrink-0">
         <div className="h-16 flex items-center px-6 border-b border-border">
-          <div className="flex items-center gap-2 text-primary font-bold text-lg tracking-tight">
-            <Activity className="h-5 w-5" />
-            <span>Northside Ops</span>
+          <div className="flex flex-col gap-0.5">
+            <img
+              src="https://www.northside.com/src/assets/img/NH_Logo_Navy_2021.svg"
+              alt="Northside Hospital"
+              className="h-6 w-auto brightness-0 invert"
+            />
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Control Tower</span>
           </div>
         </div>
         
@@ -50,7 +54,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 key={item.href} 
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm font-medium",
+                  "flex items-center gap-3 px-3 py-2 transition-colors text-sm font-medium",
                   isActive 
                     ? "bg-primary/10 text-primary" 
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -64,7 +68,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
         
         <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent cursor-pointer">
+          <div className="flex items-center gap-3 px-3 py-2 transition-colors text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent cursor-pointer">
             <Settings className="h-4 w-4" />
             Settings
           </div>
@@ -80,14 +84,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full border border-border">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-3 py-1.5 border border-border">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
               </span>
               System Active
             </div>
-            <button className="text-muted-foreground hover:text-foreground transition-colors p-2 rounded-md hover:bg-accent/10">
+            <button className="text-muted-foreground hover:text-foreground transition-colors p-2 hover:bg-accent/10">
               <Bell className="h-5 w-5" />
             </button>
           </div>

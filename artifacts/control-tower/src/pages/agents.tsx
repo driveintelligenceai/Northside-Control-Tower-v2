@@ -71,7 +71,7 @@ export default function AgentsPage() {
         <div className="lg:col-span-2 space-y-4">
           <h3 className="text-lg font-medium">Agent Roster</h3>
           {loadingAgents ? (
-            <div className="animate-pulse h-40 bg-card rounded-xl"></div>
+            <div className="animate-pulse h-40 bg-card"></div>
           ) : agents?.map(agent => (
             <Card key={agent.id} className="bg-card border-card-border overflow-hidden">
               <div className="flex flex-col md:flex-row border-b border-border/50">
@@ -113,38 +113,38 @@ export default function AgentsPage() {
         </div>
 
         {/* Live Terminal Log */}
-        <Card className="bg-[#0A0A0A] border-[#1F2937] flex flex-col h-[600px] font-mono shadow-2xl">
-          <CardHeader className="border-b border-[#1F2937] py-3 px-4 bg-[#111111]">
-            <CardTitle className="text-xs text-[#8B949E] flex items-center gap-2">
+        <Card className="bg-secondary border-border flex flex-col h-[600px] font-mono shadow-2xl">
+          <CardHeader className="border-b border-border py-3 px-4 bg-background">
+            <CardTitle className="text-xs text-muted-foreground flex items-center gap-2">
               <TerminalSquare className="h-4 w-4" />
               Agent Live Feed (sys_id: {activeAgentId})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 flex-1 overflow-auto text-xs space-y-2">
             {loadingActivity ? (
-              <div className="text-[#4B5563]">Establishing connection...</div>
+              <div className="text-muted-foreground/50">Establishing connection...</div>
             ) : activity?.map(log => (
-              <div key={log.id} className="flex gap-3 items-start border-l border-[#1F2937] pl-3 py-1">
-                <span className="text-[#4B5563] shrink-0">
+              <div key={log.id} className="flex gap-3 items-start border-l border-border pl-3 py-1">
+                <span className="text-muted-foreground/50 shrink-0">
                   {new Date(log.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </span>
                 <div className="flex-1">
                   <span className={cn(
                     "mr-2 font-bold",
-                    log.status === 'success' ? "text-[#10B981]" : 
-                    log.status === 'failed' ? "text-[#EF4444]" : "text-[#F59E0B]"
+                    log.status === 'success' ? "text-green-400" : 
+                    log.status === 'failed' ? "text-destructive" : "text-yellow-400"
                   )}>
                     [{log.status.toUpperCase()}]
                   </span>
-                  <span className="text-[#E5E7EB]">{log.action}</span>
-                  {log.details && <div className="text-[#9CA3AF] mt-1 line-clamp-2">{log.details}</div>}
+                  <span className="text-foreground">{log.action}</span>
+                  {log.details && <div className="text-muted-foreground mt-1 line-clamp-2">{log.details}</div>}
                   {log.confidenceScore && (
-                    <div className="mt-1 text-[#60A5FA]">conf_score: {log.confidenceScore.toFixed(4)}</div>
+                    <div className="mt-1 text-primary">conf_score: {log.confidenceScore.toFixed(4)}</div>
                   )}
                 </div>
               </div>
             ))}
-            <div className="text-[#10B981] animate-pulse">_</div>
+            <div className="text-green-400 animate-pulse">_</div>
           </CardContent>
         </Card>
       </div>

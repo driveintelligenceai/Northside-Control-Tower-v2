@@ -75,7 +75,7 @@ export default function AttributionPage() {
             <CardTitle>Lead Source Intelligence</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border border-border overflow-hidden">
+            <div className="border border-border overflow-hidden">
               <Table>
                 <TableHeader className="bg-muted/50">
                   <TableRow className="hover:bg-transparent border-border">
