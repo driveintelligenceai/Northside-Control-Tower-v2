@@ -4,6 +4,8 @@
 
 pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
 
+**Project**: Northside Hospital Sales & Marketing Control Tower — a mission-control-style command center for the CMO and CTO. Tracks all marketing inputs (paid ads, campaigns) and outputs (patient bookings, lead attribution), monitors recursive AI learning agents, and surfaces anomalies. Pre-populated with realistic Northside Hospital (Atlanta, GA) data across 10 actual service lines. HIPAA-aware architecture with de-identified patient data throughout.
+
 ## Stack
 
 - **Monorepo tool**: pnpm workspaces
@@ -15,25 +17,78 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
+- **Frontend**: React + Vite, TailwindCSS, shadcn/ui, Recharts, React Query
 
 ## Structure
 
 ```text
 artifacts-monorepo/
 ├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
+│   ├── api-server/         # Express API server (port 8080)
+│   ├── control-tower/      # React + Vite frontend (previewPath: /)
+│   └── mockup-sandbox/     # Component preview server
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
 │   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+├── scripts/                # Utility scripts (seed, etc.)
+│   └── src/                # Individual .ts scripts
+├── pnpm-workspace.yaml
+├── tsconfig.base.json
+├── tsconfig.json
+└── package.json
 ```
+
+## Control Tower Pages (8 total)
+
+1. **Command Center** (`/`) — System overview with KPIs, lead/booking velocity chart, agent health panel
+2. **Attribution** (`/attribution`) — Multi-touch path analysis (First Touch, Multi-Touch, Last Touch models)
+3. **Campaigns** (`/campaigns`) — Campaign control panel with active directory table, search/filter
+4. **Bookings** (`/bookings`) — Patient booking funnel (Leads → Scheduled → Completed → Follow-ups)
+5. **Content Lab** (`/content`) — Content performance analysis with asset library table
+6. **AI Agents** (`/agents`) — Agent fleet status, accuracy/confidence bars, live activity feed
+7. **Alerts** (`/alerts`) — Anomalies & alerts feed with severity filtering (critical/warning/info)
+8. **Departments** (`/departments`) — Cross-department analysis by service line
+
+## Database Schema (7 tables)
+
+- `service_lines` — 10 Northside Hospital clinical departments
+- `lead_sources` — 15 marketing channels (Google Ads, Facebook, Physician Referrals, etc.)
+- `campaigns` — 25 active marketing campaigns with budgets and performance
+- `patient_leads` — 15,000 de-identified patient leads with funnel stages (patientId format: NH-XXXXXX)
+- `content_assets` — 25 marketing content pieces with engagement metrics
+- `agents` / `agent_activities` — 5 AI agents (Data Quality, Attribution, Anomaly Detection, Optimization, Compliance) with 100 activity logs
+- `alerts` — 15 system alerts/anomalies
+
+## API Routes
+
+All routes mounted at `/api`:
+- `GET /api/dashboard/summary` — KPIs with period comparison trends
+- `GET /api/dashboard/trends` — Time-series data for charts
+- `GET /api/attribution` — Multi-model attribution analysis
+- `GET /api/campaigns` — Campaign listing with search/filter/pagination
+- `GET /api/campaigns/top` — Top performing campaigns
+- `GET /api/bookings/funnel` — Conversion pipeline stages
+- `GET /api/bookings/by-service-line` — Bookings breakdown by department
+- `GET /api/bookings/recent` — Recent booking activity feed
+- `GET /api/content` — Content asset library
+- `GET /api/content/top` — Top performing content
+- `GET /api/agents` — Agent fleet status
+- `GET /api/agents/:id/activities` — Agent activity logs
+- `GET /api/alerts` — Alert feed with filtering
+- `GET /api/alerts/summary` — Alert counts by severity
+- `GET /api/service-lines` — Service line listing
+- `GET /api/service-lines/performance` — Department performance metrics
+- `GET /api/lead-sources` — Lead source listing
+
+## Key Design Decisions
+
+- **HIPAA-aware**: All patient data uses de-identified IDs (NH-XXXXXX format), no PHI stored
+- **Period support**: 7d, 30d, 90d, 12m across most endpoints
+- **ROI calculation**: Assumes $1,500 value per converted patient booking
+- **Dark theme**: Mission-control aesthetic with cyan/teal accents
+- **5 AI Agents**: Simulated recursive learning agents with accuracy/confidence scores
 
 ## TypeScript & Composite Projects
 
@@ -56,11 +111,20 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
 
 - Entry: `src/index.ts` — reads `PORT`, starts Express
 - App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
+- Routes: `src/routes/index.ts` mounts sub-routers (dashboard, service-lines, lead-sources, campaigns, bookings, content, agents, alerts)
 - Depends on: `@workspace/db`, `@workspace/api-zod`
 - `pnpm --filter @workspace/api-server run dev` — run the dev server
 - `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+
+### `artifacts/control-tower` (`@workspace/control-tower`)
+
+React + Vite frontend for the Control Tower. Uses shadcn/ui components, Recharts for visualizations, React Query for data fetching.
+
+- Entry: `src/main.tsx` — React app with QueryClientProvider
+- Router: `src/App.tsx` — React Router with 8 page routes
+- Pages: `src/pages/` — Individual page components
+- Components: `src/components/ui/` — shadcn/ui components
+- Depends on: `@workspace/api-client-react`
 
 ### `lib/db` (`@workspace/db`)
 
@@ -68,7 +132,6 @@ Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client insta
 
 - `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
 - `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
 - `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
 - Exports: `.` (pool, db, schema), `./schema` (schema only)
 
@@ -85,12 +148,14 @@ Run codegen: `pnpm --filter @workspace/api-spec run codegen`
 
 ### `lib/api-zod` (`@workspace/api-zod`)
 
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
+Generated Zod schemas from the OpenAPI spec. Used by `api-server` for response validation.
 
 ### `lib/api-client-react` (`@workspace/api-client-react`)
 
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
+Generated React Query hooks and fetch client from the OpenAPI spec.
 
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+
+- `seed` — Populates database with realistic Northside Hospital data (10 service lines, 15 lead sources, 25 campaigns, 15,000 patient leads, 25 content assets, 5 AI agents, 100 agent activities, 15 alerts)

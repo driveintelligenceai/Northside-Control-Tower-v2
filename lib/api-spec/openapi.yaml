@@ -3,13 +3,29 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Northside Hospital Sales & Marketing Control Tower API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: dashboard
+    description: Dashboard summary and KPIs
+  - name: service-lines
+    description: Hospital service line/department operations
+  - name: lead-sources
+    description: Lead source and attribution operations
+  - name: campaigns
+    description: Campaign management operations
+  - name: bookings
+    description: Patient booking funnel operations
+  - name: content
+    description: Content performance operations
+  - name: agents
+    description: AI agent monitoring operations
+  - name: alerts
+    description: Alerts and anomaly operations
 paths:
   /healthz:
     get:
@@ -24,6 +40,416 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard KPI summary
+      description: Returns top-level KPIs with trend data for the control tower overview
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 12m]
+            default: "30d"
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/trends:
+    get:
+      operationId: getDashboardTrends
+      tags: [dashboard]
+      summary: Get time-series trend data
+      description: Returns daily time-series data for charts
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 12m]
+            default: "30d"
+      responses:
+        "200":
+          description: Trend data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrendData"
+
+  /service-lines:
+    get:
+      operationId: listServiceLines
+      tags: [service-lines]
+      summary: List all service lines
+      responses:
+        "200":
+          description: Service lines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceLine"
+
+  /service-lines/performance:
+    get:
+      operationId: getServiceLinePerformance
+      tags: [service-lines]
+      summary: Get service line performance comparison
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 12m]
+            default: "30d"
+      responses:
+        "200":
+          description: Performance data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceLinePerformance"
+
+  /lead-sources:
+    get:
+      operationId: listLeadSources
+      tags: [lead-sources]
+      summary: List all lead sources with metrics
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 12m]
+            default: "30d"
+      responses:
+        "200":
+          description: Lead sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeadSourceMetrics"
+
+  /lead-sources/attribution:
+    get:
+      operationId: getAttribution
+      tags: [lead-sources]
+      summary: Get multi-touch attribution breakdown
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 12m]
+            default: "30d"
+      responses:
+        "200":
+          description: Attribution data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttributionData"
+
+  /campaigns:
+    get:
+      operationId: listCampaigns
+      tags: [campaigns]
+      summary: List all campaigns
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, paused, completed, all]
+            default: "all"
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [paid_search, social_media, content_marketing, direct_mail, community, email, all]
+            default: "all"
+      responses:
+        "200":
+          description: Campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Campaign"
+
+  /campaigns/{id}:
+    get:
+      operationId: getCampaign
+      tags: [campaigns]
+      summary: Get campaign details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Campaign details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+
+  /campaigns/top-performing:
+    get:
+      operationId: getTopCampaigns
+      tags: [campaigns]
+      summary: Get top performing campaigns
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 12m]
+            default: "30d"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 5
+      responses:
+        "200":
+          description: Top campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CampaignPerformance"
+
+  /bookings/funnel:
+    get:
+      operationId: getBookingFunnel
+      tags: [bookings]
+      summary: Get patient booking funnel data
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 12m]
+            default: "30d"
+        - name: serviceLineId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Funnel data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookingFunnel"
+
+  /bookings/by-service-line:
+    get:
+      operationId: getBookingsByServiceLine
+      tags: [bookings]
+      summary: Get bookings grouped by service line
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 12m]
+            default: "30d"
+      responses:
+        "200":
+          description: Bookings by service line
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceLineBookings"
+
+  /bookings/recent:
+    get:
+      operationId: getRecentBookings
+      tags: [bookings]
+      summary: Get recent patient bookings
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Recent bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BookingSummary"
+
+  /content:
+    get:
+      operationId: listContent
+      tags: [content]
+      summary: List content assets with performance
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [blog, landing_page, video, social, email, all]
+            default: "all"
+      responses:
+        "200":
+          description: Content assets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContentAsset"
+
+  /content/top-performing:
+    get:
+      operationId: getTopContent
+      tags: [content]
+      summary: Get top performing content
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 12m]
+            default: "30d"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Top content
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContentPerformance"
+
+  /agents:
+    get:
+      operationId: listAgents
+      tags: [agents]
+      summary: List all AI agents with status
+      responses:
+        "200":
+          description: Agent list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Agent"
+
+  /agents/{id}/activity:
+    get:
+      operationId: getAgentActivity
+      tags: [agents]
+      summary: Get agent activity log
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Agent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentActivity"
+
+  /agents/health:
+    get:
+      operationId: getAgentHealth
+      tags: [agents]
+      summary: Get overall agent health summary
+      responses:
+        "200":
+          description: Agent health
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentHealthSummary"
+
+  /alerts:
+    get:
+      operationId: listAlerts
+      tags: [alerts]
+      summary: List alerts and anomalies
+      parameters:
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, warning, info, all]
+            default: "all"
+        - name: acknowledged
+          in: query
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Alert"
+
+  /alerts/summary:
+    get:
+      operationId: getAlertsSummary
+      tags: [alerts]
+      summary: Get alerts summary counts
+      responses:
+        "200":
+          description: Alerts summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertsSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +460,564 @@ components:
       required:
         - status
 
+    DashboardSummary:
+      type: object
+      properties:
+        totalLeads:
+          type: integer
+        totalLeadsTrend:
+          type: number
+        newBookings:
+          type: integer
+        newBookingsTrend:
+          type: number
+        conversionRate:
+          type: number
+        conversionRateTrend:
+          type: number
+        totalCampaignSpend:
+          type: number
+        campaignSpendTrend:
+          type: number
+        costPerAcquisition:
+          type: number
+        cpaTrend:
+          type: number
+        campaignROI:
+          type: number
+        roiTrend:
+          type: number
+        activeAgents:
+          type: integer
+        totalAgents:
+          type: integer
+        avgAgentAccuracy:
+          type: number
+        criticalAlerts:
+          type: integer
+        period:
+          type: string
+      required:
+        - totalLeads
+        - totalLeadsTrend
+        - newBookings
+        - newBookingsTrend
+        - conversionRate
+        - conversionRateTrend
+        - totalCampaignSpend
+        - campaignSpendTrend
+        - costPerAcquisition
+        - cpaTrend
+        - campaignROI
+        - roiTrend
+        - activeAgents
+        - totalAgents
+        - avgAgentAccuracy
+        - criticalAlerts
+        - period
+
+    TrendData:
+      type: object
+      properties:
+        dates:
+          type: array
+          items:
+            type: string
+        leads:
+          type: array
+          items:
+            type: integer
+        bookings:
+          type: array
+          items:
+            type: integer
+        spend:
+          type: array
+          items:
+            type: number
+        conversions:
+          type: array
+          items:
+            type: number
+      required:
+        - dates
+        - leads
+        - bookings
+        - spend
+        - conversions
+
+    ServiceLine:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        isActive:
+          type: boolean
+      required:
+        - id
+        - name
+        - slug
+        - isActive
+
+    ServiceLinePerformance:
+      type: object
+      properties:
+        serviceLineId:
+          type: integer
+        serviceLineName:
+          type: string
+        totalLeads:
+          type: integer
+        totalBookings:
+          type: integer
+        conversionRate:
+          type: number
+        totalSpend:
+          type: number
+        costPerAcquisition:
+          type: number
+        roi:
+          type: number
+        trend:
+          type: number
+      required:
+        - serviceLineId
+        - serviceLineName
+        - totalLeads
+        - totalBookings
+        - conversionRate
+        - totalSpend
+        - costPerAcquisition
+        - roi
+        - trend
+
+    LeadSourceMetrics:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+        totalLeads:
+          type: integer
+        convertedLeads:
+          type: integer
+        conversionRate:
+          type: number
+        totalSpend:
+          type: number
+        costPerLead:
+          type: number
+        trend:
+          type: number
+      required:
+        - id
+        - name
+        - category
+        - totalLeads
+        - convertedLeads
+        - conversionRate
+        - totalSpend
+        - costPerLead
+        - trend
+
+    AttributionData:
+      type: object
+      properties:
+        firstTouch:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttributionEntry"
+        lastTouch:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttributionEntry"
+        multiTouch:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttributionEntry"
+      required:
+        - firstTouch
+        - lastTouch
+        - multiTouch
+
+    AttributionEntry:
+      type: object
+      properties:
+        sourceName:
+          type: string
+        percentage:
+          type: number
+        conversions:
+          type: integer
+        revenue:
+          type: number
+      required:
+        - sourceName
+        - percentage
+        - conversions
+        - revenue
+
+    Campaign:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        serviceLineId:
+          type: integer
+        serviceLineName:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+        budget:
+          type: number
+        spent:
+          type: number
+        impressions:
+          type: integer
+        clicks:
+          type: integer
+        conversions:
+          type: integer
+        ctr:
+          type: number
+        cpc:
+          type: number
+        cpa:
+          type: number
+        roi:
+          type: number
+      required:
+        - id
+        - name
+        - type
+        - status
+        - budget
+        - spent
+        - impressions
+        - clicks
+        - conversions
+
+    CampaignPerformance:
+      type: object
+      properties:
+        campaignId:
+          type: integer
+        campaignName:
+          type: string
+        type:
+          type: string
+        roi:
+          type: number
+        conversions:
+          type: integer
+        spent:
+          type: number
+        cpa:
+          type: number
+      required:
+        - campaignId
+        - campaignName
+        - type
+        - roi
+        - conversions
+        - spent
+        - cpa
+
+    BookingFunnel:
+      type: object
+      properties:
+        leads:
+          type: integer
+        appointmentsScheduled:
+          type: integer
+        appointmentsCompleted:
+          type: integer
+        followUps:
+          type: integer
+        leadsToScheduledRate:
+          type: number
+        scheduledToCompletedRate:
+          type: number
+        completedToFollowUpRate:
+          type: number
+        overallConversionRate:
+          type: number
+      required:
+        - leads
+        - appointmentsScheduled
+        - appointmentsCompleted
+        - followUps
+        - leadsToScheduledRate
+        - scheduledToCompletedRate
+        - completedToFollowUpRate
+        - overallConversionRate
+
+    ServiceLineBookings:
+      type: object
+      properties:
+        serviceLineId:
+          type: integer
+        serviceLineName:
+          type: string
+        totalBookings:
+          type: integer
+        newPatients:
+          type: integer
+        returningPatients:
+          type: integer
+        cancelledBookings:
+          type: integer
+        noShows:
+          type: integer
+        trend:
+          type: number
+      required:
+        - serviceLineId
+        - serviceLineName
+        - totalBookings
+        - newPatients
+        - returningPatients
+
+    BookingSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        patientId:
+          type: string
+        serviceLineName:
+          type: string
+        leadSourceName:
+          type: string
+        status:
+          type: string
+        appointmentDate:
+          type: string
+        createdAt:
+          type: string
+        isNewPatient:
+          type: boolean
+      required:
+        - id
+        - patientId
+        - serviceLineName
+        - status
+        - appointmentDate
+        - createdAt
+        - isNewPatient
+
+    ContentAsset:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+        serviceLineName:
+          type: string
+        publishDate:
+          type: string
+        views:
+          type: integer
+        clicks:
+          type: integer
+        conversions:
+          type: integer
+        engagementRate:
+          type: number
+        status:
+          type: string
+      required:
+        - id
+        - title
+        - type
+        - views
+        - clicks
+        - conversions
+        - engagementRate
+        - status
+
+    ContentPerformance:
+      type: object
+      properties:
+        contentId:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+        views:
+          type: integer
+        conversions:
+          type: integer
+        engagementRate:
+          type: number
+        conversionRate:
+          type: number
+      required:
+        - contentId
+        - title
+        - type
+        - views
+        - conversions
+        - engagementRate
+        - conversionRate
+
+    Agent:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        accuracy:
+          type: number
+        errorRate:
+          type: number
+        confidenceScore:
+          type: number
+        tasksCompleted:
+          type: integer
+        tasksTotal:
+          type: integer
+        lastRunAt:
+          type: string
+        learningRate:
+          type: number
+        description:
+          type: string
+      required:
+        - id
+        - name
+        - type
+        - status
+        - accuracy
+        - errorRate
+        - confidenceScore
+        - tasksCompleted
+        - tasksTotal
+        - lastRunAt
+
+    AgentActivity:
+      type: object
+      properties:
+        id:
+          type: integer
+        agentId:
+          type: integer
+        action:
+          type: string
+        details:
+          type: string
+        status:
+          type: string
+        confidenceScore:
+          type: number
+        timestamp:
+          type: string
+      required:
+        - id
+        - agentId
+        - action
+        - status
+        - timestamp
+
+    AgentHealthSummary:
+      type: object
+      properties:
+        totalAgents:
+          type: integer
+        activeAgents:
+          type: integer
+        avgAccuracy:
+          type: number
+        avgErrorRate:
+          type: number
+        avgConfidence:
+          type: number
+        totalTasksCompleted:
+          type: integer
+        totalTasksToday:
+          type: integer
+        learningTrend:
+          type: number
+      required:
+        - totalAgents
+        - activeAgents
+        - avgAccuracy
+        - avgErrorRate
+        - avgConfidence
+        - totalTasksCompleted
+        - totalTasksToday
+        - learningTrend
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        message:
+          type: string
+        severity:
+          type: string
+        category:
+          type: string
+        agentName:
+          type: string
+        isAcknowledged:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - title
+        - message
+        - severity
+        - category
+        - isAcknowledged
+        - createdAt
+
+    AlertsSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        critical:
+          type: integer
+        warning:
+          type: integer
+        info:
+          type: integer
+        unacknowledged:
+          type: integer
+      required:
+        - total
+        - critical
+        - warning
+        - info
+        - unacknowledged
