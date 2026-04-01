@@ -9,7 +9,6 @@ export default function AgentsPage() {
   const { data: agents, isLoading: loadingAgents } = useListAgents();
   const { data: health, isLoading: loadingHealth } = useGetAgentHealth();
   
-  // We'll use the first active agent's ID if available.
   const activeAgentId = agents?.find(a => a.status === 'active')?.id || 1;
   const { data: activity, isLoading: loadingActivity } = useGetAgentActivity(activeAgentId, { limit: 10 });
 

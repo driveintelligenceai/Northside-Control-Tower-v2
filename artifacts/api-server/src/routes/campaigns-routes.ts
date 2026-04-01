@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { campaigns, serviceLines } from "@workspace/db/schema";
+import { campaigns, serviceLines, auditTrail } from "@workspace/db/schema";
 import { sql, eq, gte, and, desc } from "drizzle-orm";
 import {
   ListCampaignsQueryParams,
@@ -173,6 +173,120 @@ router.get("/campaigns/:id", async (req, res) => {
     roi: spent > 0 ? Math.round(((conversions * 1500 - spent) / spent) * 10000) / 100 : 0,
   });
   res.json(data);
+});
+
+interface CreateCampaignBody {
+  name: string;
+  type: string;
+  status?: string;
+  serviceLineId?: number;
+  startDate: string;
+  endDate?: string;
+  budget: number;
+}
+
+interface UpdateCampaignBody {
+  name?: string;
+  type?: string;
+  status?: string;
+  serviceLineId?: number;
+  startDate?: string;
+  endDate?: string;
+  budget?: number;
+  spent?: number;
+}
+
+router.post("/campaigns", async (req, res) => {
+  const body = req.body as CreateCampaignBody;
+  if (!body.name || !body.type || !body.startDate || body.budget === undefined) {
+    res.status(400).json({ error: "Missing required fields: name, type, startDate, budget" });
+    return;
+  }
+
+  const [created] = await db
+    .insert(campaigns)
+    .values({
+      name: body.name,
+      type: body.type,
+      status: body.status,
+      serviceLineId: body.serviceLineId,
+      startDate: body.startDate,
+      endDate: body.endDate,
+      budget: body.budget.toString(),
+    })
+    .returning();
+
+  await db.insert(auditTrail).values({
+    action: "CREATE",
+    entityType: "campaign",
+    entityId: created.id.toString(),
+    details: { name: body.name, type: body.type, budget: body.budget },
+  });
+
+  res.status(201).json(created);
+});
+
+router.patch("/campaigns/:id", async (req, res) => {
+  const { id } = GetCampaignParams.parse(req.params);
+  const body = req.body as UpdateCampaignBody;
+
+  const updates: Record<string, unknown> = {};
+  if (body.name !== undefined) updates.name = body.name;
+  if (body.type !== undefined) updates.type = body.type;
+  if (body.status !== undefined) updates.status = body.status;
+  if (body.serviceLineId !== undefined) updates.serviceLineId = body.serviceLineId;
+  if (body.startDate !== undefined) updates.startDate = body.startDate;
+  if (body.endDate !== undefined) updates.endDate = body.endDate;
+  if (body.budget !== undefined) updates.budget = body.budget.toString();
+  if (body.spent !== undefined) updates.spent = body.spent.toString();
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "No fields to update" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(campaigns)
+    .set(updates)
+    .where(eq(campaigns.id, id))
+    .returning();
+
+  if (!updated) {
+    res.status(404).json({ error: "Campaign not found" });
+    return;
+  }
+
+  await db.insert(auditTrail).values({
+    action: "UPDATE",
+    entityType: "campaign",
+    entityId: id.toString(),
+    details: updates,
+  });
+
+  res.json(updated);
+});
+
+router.delete("/campaigns/:id", async (req, res) => {
+  const { id } = GetCampaignParams.parse(req.params);
+
+  const [deleted] = await db
+    .delete(campaigns)
+    .where(eq(campaigns.id, id))
+    .returning();
+
+  if (!deleted) {
+    res.status(404).json({ error: "Campaign not found" });
+    return;
+  }
+
+  await db.insert(auditTrail).values({
+    action: "DELETE",
+    entityType: "campaign",
+    entityId: id.toString(),
+    details: { name: deleted.name },
+  });
+
+  res.json({ success: true });
 });
 
 export default router;

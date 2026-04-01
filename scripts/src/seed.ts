@@ -8,12 +8,16 @@ import {
   agents,
   agentActivities,
   alerts,
+  attributionTouchpoints,
+  auditTrail,
 } from "@workspace/db/schema";
 
 async function seed() {
   console.log("Seeding Northside Hospital Control Tower data...");
 
   console.log("Clearing existing data...");
+  await db.delete(attributionTouchpoints);
+  await db.delete(auditTrail);
   await db.delete(agentActivities);
   await db.delete(alerts);
   await db.delete(agents);
@@ -368,6 +372,70 @@ async function seed() {
 
   await db.insert(alerts).values(alertInsertData);
   console.log(`Inserted ${alertInsertData.length} alerts`);
+
+  console.log("Generating attribution touchpoints...");
+  const touchpointChannels = ["organic_search", "paid_search", "social_media", "email", "direct", "referral", "display_ads", "video"];
+  const touchpointTypes = ["click", "impression", "form_submit", "phone_call", "chat"];
+
+  const leadIdRows = await db.select({ id: patientLeads.id }).from(patientLeads).limit(5000);
+  const leadIds = leadIdRows.map(r => r.id);
+
+  const touchpointBatchSize = 2000;
+  let touchpointsInserted = 0;
+  const totalTouchpoints = 25000;
+
+  for (let batch = 0; batch < Math.ceil(totalTouchpoints / touchpointBatchSize); batch++) {
+    const batchData = [];
+    const currentSize = Math.min(touchpointBatchSize, totalTouchpoints - touchpointsInserted);
+    for (let i = 0; i < currentSize; i++) {
+      const leadId = leadIds[Math.floor(Math.random() * leadIds.length)];
+      const daysAgo = Math.floor(Math.random() * 450);
+      const date = new Date();
+      date.setDate(date.getDate() - daysAgo);
+      batchData.push({
+        patientLeadId: leadId,
+        leadSourceId: insertedLS[Math.floor(Math.random() * insertedLS.length)].id,
+        campaignId: Math.random() > 0.3 ? insertedCampaigns[Math.floor(Math.random() * insertedCampaigns.length)].id : null,
+        touchpointType: touchpointTypes[Math.floor(Math.random() * touchpointTypes.length)],
+        channel: touchpointChannels[Math.floor(Math.random() * touchpointChannels.length)],
+        position: (i % 4) + 1,
+        interactionDate: date,
+      });
+    }
+    await db.insert(attributionTouchpoints).values(batchData);
+    touchpointsInserted += currentSize;
+  }
+  console.log(`Inserted ${touchpointsInserted} attribution touchpoints`);
+
+  console.log("Generating audit trail entries...");
+  const auditActions = [
+    { action: "CREATE", entityType: "campaign", details: { name: "New campaign created via control tower" } },
+    { action: "UPDATE", entityType: "campaign", details: { field: "budget", oldValue: 15000, newValue: 22000 } },
+    { action: "VIEW", entityType: "dashboard", details: { page: "command-center" } },
+    { action: "EXPORT", entityType: "report", details: { format: "csv", reportType: "attribution" } },
+    { action: "UPDATE", entityType: "agent_config", details: { agentName: "Anomaly Detection", field: "threshold" } },
+    { action: "VIEW", entityType: "patient_lead", details: { note: "De-identified access only" } },
+    { action: "ACK", entityType: "alert", details: { severity: "critical" } },
+    { action: "CREATE", entityType: "content_asset", details: { type: "blog", title: "New health guide" } },
+  ];
+
+  const auditEntries = [];
+  for (let i = 0; i < 200; i++) {
+    const template = auditActions[i % auditActions.length];
+    const daysAgo = Math.floor(Math.random() * 90);
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    auditEntries.push({
+      action: template.action,
+      entityType: template.entityType,
+      entityId: String(Math.floor(Math.random() * 100) + 1),
+      userId: `admin-${(i % 5) + 1}`,
+      details: template.details,
+      createdAt: date,
+    });
+  }
+  await db.insert(auditTrail).values(auditEntries);
+  console.log(`Inserted ${auditEntries.length} audit trail entries`);
 
   console.log("\nSeed complete!");
 }

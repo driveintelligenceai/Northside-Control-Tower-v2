@@ -10,8 +10,6 @@ import { Megaphone, Search, Play, Pause, ExternalLink, TrendingUp } from "lucide
 export default function CampaignsPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused" | "completed">("all");
   
-  // Cast 'all' to undefined when passing to the API if the API doesn't explicitly accept 'all'
-  // Or assuming the API accepts it based on schema
   const { data: campaigns, isLoading } = useListCampaigns({ status: statusFilter });
   const { data: topCampaigns, isLoading: loadingTop } = useGetTopCampaigns({ period: "30d", limit: 3 });
 

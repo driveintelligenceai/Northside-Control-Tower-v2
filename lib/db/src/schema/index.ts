@@ -5,3 +5,5 @@ export * from "./patient-leads";
 export * from "./content-assets";
 export * from "./agents";
 export * from "./alerts";
+export * from "./attribution-touchpoints";
+export * from "./audit-trail";

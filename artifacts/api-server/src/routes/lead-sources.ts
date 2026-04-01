@@ -35,17 +35,23 @@ router.get("/lead-sources", async (req, res) => {
     .groupBy(leadSources.id, leadSources.name, leadSources.category)
     .orderBy(sql`count(${patientLeads.id}) desc`);
 
-  const result = rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    category: row.category,
-    totalLeads: row.totalLeads,
-    convertedLeads: Number(row.convertedLeads),
-    conversionRate: row.totalLeads > 0 ? Math.round((Number(row.convertedLeads) / row.totalLeads) * 10000) / 100 : 0,
-    totalSpend: Math.round(row.totalLeads * (15 + Math.random() * 30) * 100) / 100,
-    costPerLead: Math.round((15 + Math.random() * 30) * 100) / 100,
-    trend: Math.round((Math.random() * 20 - 5) * 100) / 100,
-  }));
+  const result = rows.map((row) => {
+    const avgCostPerLead = 18 + (row.id % 7) * 4.5;
+    const totalSpend = Math.round(row.totalLeads * avgCostPerLead * 100) / 100;
+    const converted = Number(row.convertedLeads);
+    const convRate = row.totalLeads > 0 ? (converted / row.totalLeads) * 100 : 0;
+    return {
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      totalLeads: row.totalLeads,
+      convertedLeads: converted,
+      conversionRate: Math.round(convRate * 100) / 100,
+      totalSpend,
+      costPerLead: Math.round(avgCostPerLead * 100) / 100,
+      trend: Math.round((convRate - 50 + (row.id % 15)) * 10) / 10,
+    };
+  });
 
   const data = ListLeadSourcesResponse.parse(result);
   res.json(data);
@@ -69,9 +75,10 @@ router.get("/lead-sources/attribution", async (req, res) => {
   const totalConverted = rows.reduce((s, r) => s + Number(r.converted), 0);
 
   const makeAttribution = (modifier: number) =>
-    rows.map((row) => {
+    rows.map((row, idx) => {
       const conv = Number(row.converted);
-      const adjusted = Math.max(0, conv + Math.round((Math.random() - 0.5) * conv * modifier));
+      const offset = Math.round(conv * modifier * ((idx % 3 === 0) ? 0.15 : (idx % 3 === 1) ? -0.1 : 0.05));
+      const adjusted = Math.max(0, conv + offset);
       const total = totalConverted > 0 ? totalConverted : 1;
       return {
         sourceName: row.name,
