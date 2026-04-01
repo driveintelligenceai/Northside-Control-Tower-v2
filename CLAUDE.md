@@ -4,7 +4,7 @@
 
 pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
 
-**Project**: Northside Hospital Sales & Marketing Control Tower — a mission-control-style command center for the CMO and CTO. Tracks all marketing inputs (paid ads, campaigns) and outputs (patient bookings, lead attribution), monitors recursive AI learning agents, and surfaces anomalies. Pre-populated with realistic Northside Hospital (Atlanta, GA) data across 10 actual service lines. HIPAA-aware architecture with de-identified patient data throughout.
+**Project**: Northside Hospital Sales & Marketing Control Tower — a mission-control-style command center for the CMO and CTO. Tracks all marketing inputs (paid ads, campaigns) and outputs (patient bookings, lead attribution), monitors recursive AI learning agents, and surfaces anomalies. Pre-populated with realistic Northside Hospital (Atlanta, GA) data across 10 actual service lines. HIPAA-aware architecture with de-identified patient data throughout. This will be modified slightly to use local tooling from replit, but will function the same. We will use reference /docs/GAMEPLAN.MD for improvements. ALways ask clarifng questions and recursively improve this doc by removing irrlevant items by commenting the code out, not deleting it since we we have a pipeline to push back and fourth ti replit.
 
 ## Stack
 

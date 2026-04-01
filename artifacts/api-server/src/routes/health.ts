@@ -17,7 +17,9 @@ router.get("/db-test", async (_req, res) => {
     res.json({ ok: true, agentCount: result?.count ?? 0 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    res.status(500).json({ ok: false, error: message });
+    const cause = err instanceof Error && err.cause instanceof Error ? err.cause.message : undefined;
+    const stack = err instanceof Error ? err.stack?.split("\n").slice(0, 5) : undefined;
+    res.status(500).json({ ok: false, error: message, cause, stack, envKeys: Object.keys(process.env).filter(k => k.includes("DATABASE") || k.includes("POSTGRES")).sort() });
   }
 });
 
