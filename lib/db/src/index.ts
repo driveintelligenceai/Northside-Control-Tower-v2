@@ -4,7 +4,7 @@ import * as schema from "./schema";
 
 const { Pool } = pg;
 
-const databaseUrl = process.env.DATABASE_URL || process.env.DATABASE_POSTGRES_URL;
+const databaseUrl = process.env.DATABASE_URL || process.env.DATABASE_POSTGRES_URL_NON_POOLING || process.env.DATABASE_POSTGRES_URL;
 
 if (!databaseUrl) {
   throw new Error(
