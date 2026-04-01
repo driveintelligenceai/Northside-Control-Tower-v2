@@ -14,6 +14,7 @@ import ContentPage from "@/pages/content";
 import AgentsPage from "@/pages/agents";
 import AlertsPage from "@/pages/alerts";
 import DepartmentsPage from "@/pages/departments";
+import OncologyPage from "@/pages/oncology";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ function Router() {
         <Route path="/agents" component={AgentsPage} />
         <Route path="/alerts" component={AlertsPage} />
         <Route path="/departments" component={DepartmentsPage} />
+        <Route path="/oncology" component={OncologyPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

@@ -11,7 +11,8 @@ import {
   Settings,
   Bell,
   Activity,
-  ChevronRight
+  ChevronRight,
+  Heart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,6 +21,7 @@ import { ROLE_VIEWS, type RoleKey } from "@/lib/roles";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/oncology", label: "Oncology", icon: Heart, highlight: true },
   { href: "/attribution", label: "Attribution", icon: Network },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/bookings", label: "Bookings", icon: Activity },
@@ -58,11 +60,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   "flex items-center gap-3 px-3 py-2.5 transition-colors text-sm rounded-md mb-0.5",
                   isActive 
                     ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold" 
+                    : item.highlight
+                    ? "text-[#0E7490] hover:bg-[#0E7490]/10"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
               >
                 <item.icon className="h-4 w-4" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {item.highlight && !isActive && (
+                  <span className="text-[9px] font-bold bg-[#0E7490] text-white rounded px-1 py-0.5">V2</span>
+                )}
               </Link>
             );
           })}
@@ -80,7 +87,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <header className="h-14 border-b border-border bg-white flex items-center justify-between px-6 shrink-0">
           <div className="flex items-center gap-3">
             <h1 className="text-base font-semibold text-foreground">
-              {navItems.find(i => i.href === location)?.label || "Dashboard"}
+              {navItems.find(i => i.href === location)?.label ?? "Dashboard"}
             </h1>
             <span className="text-muted-foreground text-sm hidden sm:inline">|</span>
             <span className="text-muted-foreground text-sm hidden sm:inline">Sales & Marketing</span>
